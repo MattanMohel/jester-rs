@@ -4,16 +4,6 @@ pub trait TypeId: Default + Clone {
     fn into_obj(self) -> Obj;
 }
 
-impl TypeId for u32 {
-    fn into_obj(self) -> Obj {
-        U32(self)
-    }
-}
-impl TypeId for u64 {
-    fn into_obj(self) -> Obj {
-        U64(self)
-    }
-}
 impl TypeId for i32 {
     fn into_obj(self) -> Obj {
         I32(self)
@@ -24,9 +14,9 @@ impl TypeId for i64 {
         I64(self)
     }
 }
-impl TypeId for f32 {
+impl TypeId for i128 {
     fn into_obj(self) -> Obj {
-        F32(self)
+        I128(self)
     }
 }
 impl TypeId for f64 {

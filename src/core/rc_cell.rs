@@ -1,4 +1,4 @@
-use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
+use std::{cell::{RefCell, Ref, RefMut}, rc::Rc, ops::{DerefMut, Deref}};
 use super::{type_id::TypeId, object::Obj::{self, *}};
 
 pub struct RcCell<T> {
@@ -24,7 +24,6 @@ impl TypeId for RcCell<Obj> {
         todo!()
     }
 }
-
 
 impl<T> From<T> for RcCell<T> {
     fn from(raw: T) -> Self {

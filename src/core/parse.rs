@@ -1,4 +1,17 @@
-use super::{err::{Err, ErrType::*, AsResult}, node::Node, rc_cell::RcCell};
+use super::{
+    err::{
+        Err, 
+        ErrType::*, 
+        AsResult
+    }, 
+    node::Node, 
+    rc_cell::RcCell, 
+    id::Id, 
+    context::{
+        Mod, 
+        Env
+    }, 
+    object::Obj, type_id::TypeId};
 use Tok::*;
 
 /// delimiters
@@ -17,15 +30,44 @@ enum Tok {
 }
 
 pub struct Parser {
-    tokens: Vec<Tok>
+    source: String,
+    file: Option<String>,
+    tokens: Vec<Tok>,
+    module: Mod
 }
 
-impl Parser {                
-    fn to_toks(&mut self, src: &String) {
+impl Parser {
+    /// Create a new Parser with 
+    /// content read from a file
+    pub fn parse_file(env: &Env, name: &str, path: String) -> Err<Self> {
+        Self::new(env, name.to_string(), std::fs::read_to_string(path.clone())?, Some(path))
+    }
+    /// Create a new Parse with 
+    /// content read from a string
+    pub fn parse_string(env: &Env, name: &str, src: String) -> Err<Self> {
+        Self::new(env, name.to_string(), src.to_string(), None)
+    }
+    /// Create a new Parser, extracting the 
+    /// tokens and abstract syntax tree from source
+    fn new(env: &Env, name: String, src: String, path: Option<String>) -> Err<Self> {
+        let mut parser = 
+            Parser {
+                file: path,
+                source: src,
+                tokens: Vec::new(),
+                module: Mod::new(name, env.prelude())
+            };
+
+        parser.to_toks();
+        parser.to_ast();
+        Ok(parser)
+    }
+    /// Lexically separates src into a Vec of Toks  
+    fn to_toks(&mut self) {
         // lexical buffer
         let mut buf = String::new();
 
-        for (i, ch) in src.chars().enumerate() {
+        for (i, ch) in self.source.chars().enumerate() {
             if DELMS.contains(&ch) || OPERS.contains(&ch) {
                 if !buf.is_empty() {
                     self.tokens.push(Tok::Sym(buf.clone()));      
@@ -43,14 +85,15 @@ impl Parser {
             }
             else {
                 buf.push(ch);
-                if i + 1 == src.len() {
+                if i + 1 == self.source.len() {
                     self.tokens.push(Sym(buf.clone()));
                 }
             }
         }
     }
-
-    fn to_ast(&mut self) {
+    /// Utilizes the Vec of Toks to organize the 
+    /// src into an abstract syntax tree of Nodes
+    fn to_ast(&mut self) -> Err {
         let mut curr_node = Node::default();
         let mut prev_nodes = Vec::new();
         
@@ -62,19 +105,29 @@ impl Parser {
                 }
                 End => {
                     if let Some(mut prev) = prev_nodes.pop() {
-                        // add prev to env
-                        //prev.push(RcCell::from(/*symbol*/))
+                        let sym = Self::gen_symbol();
+                        let val = self.module.add_sym(sym.as_str(), curr_node.into_obj())?;
+
+                        prev.push(RcCell::from(val));
                         curr_node = prev;
                     }
                 }
-                Sym(src) => {
-
+                Sym(sym) => {
+                    if !self.module.has_sym(&sym) {
+                        //self.module.add_sym(sym, val)
+                    }
                 }
                 _ => ()
             }
         }
-    }
 
+        Ok(())
+    }
+    
+    /// Creates a unique identifier
+    fn gen_symbol() -> String {
+        format!("G#{}", Id::next_id())
+    }   
 
 
     // fn extract_operators(&mut self) {
