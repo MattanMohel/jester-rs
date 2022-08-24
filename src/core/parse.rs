@@ -1,5 +1,5 @@
-use super::{id::Id, err::{Err, ErrType::*, AsResult}};
-use TokType::*;
+use super::{err::{Err, ErrType::*, AsResult}, node::Node, rc_cell::RcCell};
+use Tok::*;
 
 /// delimiters
 const DELMS: [char; 5] = [' ', '\n', '\t', '\"', '#'];
@@ -7,7 +7,7 @@ const DELMS: [char; 5] = [' ', '\n', '\t', '\"', '#'];
 const OPERS: [char; 6] = ['(', ')', '\'', ',', '@', '"'];
 
 #[derive(Clone, PartialEq)]
-enum TokType {
+enum Tok {
     Sym(String),
     Beg,
     End,
@@ -16,148 +16,173 @@ enum TokType {
     Apply,
 }
 
-#[derive(Clone)]
-struct Tok {
-    pub typ: TokType,
-    pub id: Id
-}
-
 pub struct Parser {
     tokens: Vec<Tok>
 }
 
-impl Parser {
-    // fn from_source(src: &String) -> Self {
-    //     let mut 
-    // }
-
-    fn tok_id_index(&self, id: &Id) -> Option<usize> {
-        self.tokens.iter().position(|tok| tok.id == *id)
-    }
-
-    fn push_tok(&mut self, typ: TokType) {
-        self.tokens.push(
-            Tok { 
-                typ: typ, 
-                id: Id::new() 
-            }
-        )
-    }
-
-    fn insert_tok(&mut self, index: usize, typ: TokType) {
-        self.tokens.insert(
-            index,
-            Tok { 
-                typ: typ, 
-                id: Id::new() 
-            }
-        )
-    }
-
-    fn parse_tokens(&mut self, src: &String) {
-        // extract tokens from src 
+impl Parser {                
+    fn to_toks(&mut self, src: &String) {
+        // lexical buffer
         let mut buf = String::new();
 
         for (i, ch) in src.chars().enumerate() {
             if DELMS.contains(&ch) || OPERS.contains(&ch) {
                 if !buf.is_empty() {
-                    self.push_tok(TokType::Sym(buf.clone()));      
+                    self.tokens.push(Tok::Sym(buf.clone()));      
                     buf.clear();
                 }
 
                 match ch {
-                    '(' => self.push_tok(Beg),   
-                    ')' => self.push_tok(End),
-                    ',' => self.push_tok(Esc),     
-                    '\'' => self.push_tok(Quote),     
-                    '@' => self.push_tok(Apply),     
+                    '(' => self.tokens.push(Beg),   
+                    ')' => self.tokens.push(End),
+                    ',' => self.tokens.push(Esc),     
+                    '\'' => self.tokens.push(Quote),     
+                    '@' => self.tokens.push(Apply),     
                     _ => ()
                 }
             }
             else {
                 buf.push(ch);
                 if i + 1 == src.len() {
-                    self.push_tok(Sym(buf.clone()))
+                    self.tokens.push(Sym(buf.clone()));
                 }
             }
         }
-
-        self.extract_operators();
     }
 
-    fn extract_operators(&mut self) {
-        for (i, tok) in 
-        self.tokens
-            .clone()
-            .iter()
-            .enumerate() 
-        {
-            match tok.typ {
-                Quote => {
-                    let mut depth = 0;
-                    let mut index = i;
+    fn to_ast(&mut self) {
+        let mut curr_node = Node::default();
+        let mut prev_nodes = Vec::new();
         
-                    loop {
-                        index += 1;
-                        let beg_depth = depth;
-        
-                        for (j, tok) in 
-                        self.tokens
-                            .iter()
-                            .enumerate()
-                            .skip(index)
-                        {
-                            match tok.typ {
-                                Beg => depth += 1,
-                                End => depth -= 1,
-                                Esc => {
-                                    index += 1;
-                                    break
-                                }
-                                _ => ()
-                            }
-        
-                            if depth == beg_depth {
-                                self.insert_tok(i, Quote);
-                                self.insert_tok(i, Beg);
-                                self.insert_tok(index, End);
-
-                                index = j;
-                                break
-                            }
-                        }
-        
-                        if depth == 0 {
-                            break
-                        }
+        for tok in self.tokens.iter() {
+            match tok {
+                Beg => {
+                    prev_nodes.push(curr_node);
+                    curr_node = Node::default();
+                }
+                End => {
+                    if let Some(mut prev) = prev_nodes.pop() {
+                        // add prev to env
+                        //prev.push(RcCell::from(/*symbol*/))
+                        curr_node = prev;
                     }
                 }
-                Apply => {
-                    let mut depth = 1;
-        
-                    for (j, tok) in 
-                    self.tokens
-                        .iter()
-                        .enumerate()
-                        .rev()
-                        .skip(self.tokens.len() - i) 
-                    {
-                        match tok.typ {
-                            TokType::Beg => depth -= 1,
-                            TokType::End => depth += 1,
-                            _ => ()
-                        }
-        
-                        if depth == 0 {
-                            self.insert_tok(j, Apply);
+                Sym(src) => {
 
-                            break
-                        }
-                    }
                 }
-
                 _ => ()
             }
         }
     }
+
+
+
+    // fn extract_operators(&mut self) {
+    //     let clone = self.tokens.clone();
+
+    //     for (i, tok) in clone.iter().enumerate().filter(|(_, tok)| **tok == Quote) {
+    //         let mut depth = 0;
+    //         let mut index = i;
+
+    //         loop {
+    //             index += 1;
+    //             let beg_depth = depth;
+
+    //             for (j, tok) in clone.iter().enumerate().skip(index) {
+    //                 match tok {
+    //                     Beg => depth += 1,
+    //                     End => depth -= 1,
+    //                     Esc => {
+    //                         index += 1;
+    //                         break
+    //                     }
+    //                     _ => ()
+    //                 }
+
+    //                 if depth == beg_depth {
+    //                     self.tokens.insert(i, Quote);
+    //                     self.tokens.insert(i, Beg);
+    //                     self.tokens.insert(index, End);
+
+    //                     index = j;
+    //                     break
+    //                 }
+    //             }
+
+    //             if depth == 0 {
+    //                 break
+    //             }
+    //         }
+    //     }
+
+    //     for (i, tok) in clone.iter().enumerate().filter(|tok| tok == Quote) {
+    //          let mut depth = 0;
+    //                 let mut index = i;
+        
+    //                 loop {
+    //                     index += 1;
+    //                     let beg_depth = depth;
+        
+    //                     for (j, tok) in 
+    //                     self.tokens
+    //                         .iter()
+    //                         .enumerate()
+    //                         .skip(index)
+    //                     {
+    //                         match tok.typ {
+    //                             Beg => depth += 1,
+    //                             End => depth -= 1,
+    //                             Esc => {
+    //                                 index += 1;
+    //                                 break
+    //                             }
+    //                             _ => ()
+    //                         }
+        
+    //                         if depth == beg_depth {
+    //                             self.insert_tok(i, Quote);
+    //                             self.insert_tok(i, Beg);
+    //                             self.insert_tok(index, End);
+
+    //                             index = j;
+    //                             break
+    //                         }
+    //                     }
+        
+    //                     if depth == 0 {
+    //                         break
+    //                     }
+    //                 }
+    //         match tok.typ {
+    //             Quote => {
+                   
+    //             }
+    //             Apply => {
+    //                 let mut depth = 1;
+        
+    //                 for (j, tok) in 
+    //                 self.tokens
+    //                     .iter()
+    //                     .enumerate()
+    //                     .rev()
+    //                     .skip(self.tokens.len() - i) 
+    //                 {
+    //                     match tok.typ {
+    //                         Tok::Beg => depth -= 1,
+    //                         Tok::End => depth += 1,
+    //                         _ => ()
+    //                     }
+        
+    //                     if depth == 0 {
+    //                         self.insert_tok(j, Apply);
+
+    //                         break
+    //                     }
+    //                 }
+    //             }
+
+    //             _ => ()
+    //         }
+    //     }
+    // }
 }

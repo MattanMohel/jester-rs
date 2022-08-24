@@ -1,15 +1,15 @@
 use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
 use super::{type_id::TypeId, object::Obj::{self, *}};
 
-
-#[derive(Clone)]
-pub struct RcCell<T: Clone> {
+pub struct RcCell<T> {
     raw: Rc<RefCell<T>>
 }
 
-impl TypeId for RcCell<Obj> {
-    fn into_obj(self) -> Obj {
-        todo!()
+impl<T> Clone for RcCell<T> {
+    fn clone(&self) -> Self {
+        Self { 
+            raw: Rc::clone(&self.raw)
+        }
     }
 }
 
@@ -19,7 +19,14 @@ impl Default for RcCell<Obj> {
     }
 }
 
-impl<T: Clone> From<T> for RcCell<T> {
+impl TypeId for RcCell<Obj> {
+    fn into_obj(self) -> Obj {
+        todo!()
+    }
+}
+
+
+impl<T> From<T> for RcCell<T> {
     fn from(raw: T) -> Self {
         Self { 
             raw: Rc::new(RefCell::new(raw))
@@ -27,7 +34,7 @@ impl<T: Clone> From<T> for RcCell<T> {
     }
 }
 
-impl<T: Clone> From<Rc<RefCell<T>>> for RcCell<T> {
+impl<T> From<Rc<RefCell<T>>> for RcCell<T> {
     fn from(raw: Rc<RefCell<T>>) -> Self {
         Self { 
             raw: raw
@@ -35,13 +42,13 @@ impl<T: Clone> From<Rc<RefCell<T>>> for RcCell<T> {
     }
 }
 
-impl<T: Clone + PartialEq> PartialEq for RcCell<T> {
+impl<T: PartialEq> PartialEq for RcCell<T> {
     fn eq(&self, other: &Self) -> bool {
         self.raw == other.raw
     }
 }
 
-impl<T: Clone> RcCell<T> {
+impl<T> RcCell<T> {
     pub fn as_ref(&self) -> Ref<T> {
         self.raw.borrow()
     }
@@ -52,5 +59,9 @@ impl<T: Clone> RcCell<T> {
 
     pub fn as_raw(&self) -> &Rc<RefCell<T>> {
         &self.raw
+    }
+
+    pub fn raw_cmp(&self, other: &Self) -> bool {
+        self.as_raw().as_ptr() == other.as_raw().as_ptr()
     }
 }
