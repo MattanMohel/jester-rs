@@ -2,7 +2,7 @@ use std::ops::Mul;
 
 use super::{
     rc_cell::RcCell, 
-    node::Node
+    node::Node, type_id::TypeId
 };
 
 use Obj::*;
@@ -23,7 +23,48 @@ pub enum Obj {
     Nil(),
 }
 
-pub fn string_to_num(str: String) -> Option<Obj> {
+impl From<String> for Obj {
+    fn from(str: String) -> Self {
+        if let Some(num) = to_num_obj(&str) {
+            num
+        }
+        else if let Some(str) = to_str_obj(&str) {
+            str
+        }
+        else {
+            Obj::Nil()
+        }
+    }
+}
+
+pub fn to_str_obj(str: &String) -> Option<Obj> {
+    // asserts string begins and ends with ""
+    if &str[0..1] != "\"" || &str[str.len() - 1..] != "\"" {
+        return None
+    }
+
+    // collects the string without the ""
+    let col =
+        str
+            .chars()
+            .skip(1)
+            .take(str.len() - 2)
+            .collect::<String>();
+
+    Some(Str(col))
+}
+
+/// Converts a `String` into a num `Obj`
+/// * Able to convert any numeral type which can
+///   be separated by '_'
+///   * i.e. `100_000` , `-100_000.` , `+100_000.123`
+/// * Able to interperet binary numerals
+///   * i.e. `#b0001_1010_0100`
+/// * Able to interperet hexadecimal numerals
+///   * i.e. `#h6_68A0`
+/// * The num-type ( `i32` | `i64` | `i128` | `f64` ) is 
+///   chosen dynamically depending on the necessary size
+pub fn to_num_obj(str: &String) -> Option<Obj> {
     // index of first digit
     let mut fst_dig = None;
     // index of number beginning
@@ -88,7 +129,8 @@ pub fn string_to_num(str: String) -> Option<Obj> {
 
     // filter and collect into numerics
     let digits = 
-        str.chars()
+        str
+            .chars()
             .skip(num_beg as usize)
             .take(num_len as usize)
             .filter(|ch| ch.is_digit(base))
@@ -97,7 +139,8 @@ pub fn string_to_num(str: String) -> Option<Obj> {
 
     // sum digits^base(x) 
     let num =
-        digits.iter()
+        digits
+            .iter()
             .rev()
             .enumerate()
             .fold(0, |acc, (i, dig)| {
