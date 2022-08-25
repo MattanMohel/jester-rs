@@ -24,7 +24,6 @@ pub enum Obj {
 }
 
 pub fn string_to_num(str: String) -> Option<Obj> {
-    let i = 0;
     // index of first digit
     let mut fst_dig = None;
     // index of number beginning
