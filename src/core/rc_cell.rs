@@ -1,5 +1,5 @@
 use std::{cell::{RefCell, Ref, RefMut}, rc::Rc, ops::{DerefMut, Deref}};
-use super::{type_id::TypeId, object::Obj::{self, *}};
+use super::{type_id::TypeId, obj::Obj::{self, *}};
 
 pub struct RcCell<T> {
     raw: Rc<RefCell<T>>

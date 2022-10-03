@@ -41,8 +41,11 @@ pub enum ErrType {
     NonMod,
     DupMod, 
     MisType,
+    MisComp,
+    MisForm,
     ErrCast,
     ErrList,
+    OverFlow,
     Unbalanced,  
     OutOfBound,
 }

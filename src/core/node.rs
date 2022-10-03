@@ -1,11 +1,24 @@
-use std::{cell::{RefMut, Ref, RefCell}, rc::Rc};
+use std::{
+    fmt,
+    cell::{RefMut, Ref}, ops::{Deref, DerefMut}
+};
 
-use super::{err::{Err, ErrType::*, AsResult}, rc_cell::RcCell, object::Obj, type_id::TypeId};
+use super::{
+    env::Env,
+    obj::Obj, 
+    rc_cell::RcCell, 
+    type_id::TypeId,
+    err::{Err, ErrType::*, AsResult}
+};
 
 
-#[derive(Clone)]
-pub struct Node {
-    vec: Vec<RcCell<Obj>>,
+
+impl Default for Node {
+    fn default() -> Self {
+        Node { 
+            vec: Vec::new() 
+        }
+    }
 }
 
 impl From<Vec<RcCell<Obj>>> for Node {
@@ -18,21 +31,32 @@ impl From<Vec<RcCell<Obj>>> for Node {
 
 impl FromIterator<RcCell<Obj>> for Node {
     fn from_iter<T>(iter: T) -> Self 
-    where T: IntoIterator<Item =  RcCell<Obj>>
+        where 
+            T: IntoIterator<Item=RcCell<Obj>>
     {
         Node::from(
             iter
                 .into_iter()
-                .collect::<Vec<RcCell<Obj>>>())
+                .collect::<Vec<_>>())
     }
 }
 
-impl Default for Node {
-    fn default() -> Self {
-        Node { 
-            vec: Vec::new() 
-        }
+impl FromIterator<Obj> for Node {
+    fn from_iter<T>(iter: T) -> Self 
+        where 
+            T: IntoIterator<Item=Obj>
+    {
+        Node::from(
+            iter
+                .into_iter()
+                .map(|obj| RcCell::from(obj))
+                .collect::<Vec<_>>())
     }
+}
+    
+#[derive(Clone, PartialEq)]
+pub struct Node {
+    vec: Vec<RcCell<Obj>>,
 }
 
 impl TypeId for Node {
@@ -42,6 +66,22 @@ impl TypeId for Node {
 }
 
 impl Node {
+    pub fn to_string(&self, env: &Env) -> String {
+        self.vec
+            .iter()
+            .enumerate()
+            .fold(String::new(), |acc, (i, obj)|
+                if i == 0 {
+                    format!("{}", obj.as_ref().to_string(env).as_str())
+                } 
+                else if i + 1 == self.len() {
+                    format!("({} {})", acc, obj.as_ref().to_string(env).as_str())
+                }
+                else {
+                    format!("{} {}", acc, obj.as_ref().to_string(env).as_str())
+                })
+    }
+
     pub fn get(&self, i: usize) -> Err<&RcCell<Obj>> {
         self.vec
             .get(i)
@@ -50,6 +90,10 @@ impl Node {
 
     pub fn len(&self) -> usize {
         self.vec.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn push(&mut self, item: RcCell<Obj>) {
@@ -65,6 +109,14 @@ impl Node {
             self.vec.remove(index).as_ref().clone(), 
             OutOfBound
         )
+    }
+
+    /// Creates an evaluated copy of Node
+    pub fn evaled(&self, env: &Env) -> Err<Self> {
+        self
+            .iter()
+            .map(|obj| env.eval(obj.as_ref().deref()))
+            .collect::<Err<Node>>()
     }
 
     pub fn iter(&self) -> NodeIter<'_> {
@@ -136,11 +188,15 @@ impl<'a> NodeIter<'a> {
         self.node.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn shift(&self, offset: usize) -> Self {
         Self::new(self.node, self.offset + offset)
     }
 
-    pub fn do_list<F>(self, mut map: F) -> Err<Obj>  
+    pub fn progn<F>(self, mut map: F) -> Err<Obj>  
     where F: FnMut(&'a RcCell<Obj>, bool) -> Err<Obj> 
     {        
         let bounds = 
@@ -155,50 +211,29 @@ impl<'a> NodeIter<'a> {
         map(self.get(bounds)?, true)
     }
 
-    // pub fn scope<'b, 'c, It1, It2>(env: &Env, params: &'b It1, args: &'c It2, body: NodeIter) -> Err<Obj>     
-    // where 
-    // It1: Iterator<Item = &'b RcCell<Obj>> + Clone, 
-    // It2: Iterator<Item = &'c RcCell<Obj>> + Clone
-    // {   
-    //     let params = 
-    //         params
-    //             .clone()
-    //             .collect::<Vec<_>>();
+    pub fn progn_scoped<'b, 'c, It1, It2>(self, env: &Env, params: It1, args: It2) -> Err<Obj>     
+    where 
+        It1: Iterator<Item = &'b RcCell<Obj>> + Clone, 
+        It2: Iterator<Item = &'c RcCell<Obj>> + Clone
+    {   
+        let prev = params.clone();   
         
-    //     let args = 
-    //         args
-    //             .clone()
-    //             .collect::<Vec<_>>();
+        for (param, arg) in params.clone().zip(args.clone()) {   
+            param
+                .as_mut()
+                .deref_mut()
+                .set(&env.eval(arg.as_ref().deref())?);
+        }
 
-    //     // (params.len() != args.len())
-    //     //     .as_result((), UnmatchedParamLists)?;
+        let ret = self.progn(|obj, _| env.eval(obj.as_ref().deref()));
 
-    //     let prev = 
-    //         params
-    //             .iter()
-    //             .map(|item| item.as_ref().clone())
-    //             .collect::<Vec<Obj>>();
-        
-    //     for (param, arg) in params.iter().zip(args.iter()) {
-    //         let eval = env.eval(arg.as_ref().deref())?
-            
-    //         param
-    //             .as_mut()
-    //             .set(&eval);
-    //     }
+        for (param, arg) in params.zip(prev) {   
+            param
+                .as_mut()
+                .deref_mut()
+                .set(&env.eval(arg.as_ref().deref())?);
+        }
 
-    //     let ret = 
-    //         body   
-    //             .do_list(|obj, _| {
-    //                 env.eval(obj.as_ref().deref())
-    //             });
-
-    //     for (param, arg) in params.iter().zip(prev.iter()) {
-    //         param
-    //             .as_mut()
-    //             .set(arg);
-    //     }
-
-    //     ret
-    // }
+        ret
+    }
 }

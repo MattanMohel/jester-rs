@@ -1,6 +1,17 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-#[derive(Clone, Copy)]
+impl ToString for Id {
+    fn to_string(&self) -> String {
+        self.id.to_string()
+    }
+}
+
+impl Clone for Id {
+    fn clone(&self) -> Self {
+        Self::new()
+    }
+}
+
 pub struct Id {
     id: usize
 }

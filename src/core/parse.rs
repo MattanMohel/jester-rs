@@ -1,18 +1,14 @@
+use std::ops::{Deref, DerefMut};
+
 use super::{
-    err::{
-        Err, 
-        ErrType::*, 
-        AsResult
-    }, 
-    node::Node, 
-    rc_cell::RcCell, 
     id::Id, 
-    context::{
-        Mod, 
-        Env
-    }, 
-    object::Obj, type_id::TypeId};
-use Tok::*;
+    node::Node, 
+    obj::Obj, 
+    rc_cell::RcCell, 
+    type_id::TypeId,
+    env::{Mod, Env}, 
+    err::{Err, ErrType::*, AsResult}, 
+};
 
 /// delimiters
 const DELMS: [char; 5] = [' ', '\n', '\t', '\"', '#'];
@@ -29,45 +25,50 @@ enum Tok {
     Apply,
 }
 
+use Tok::*;
+
 pub struct Parser {
-    source: String,
-    file: Option<String>,
+    src: String,
     tokens: Vec<Tok>,
     module: Mod
 }
 
 impl Parser {
-    /// Create a new Parser with 
-    /// content read from a file
-    pub fn parse_file(env: &Env, name: &str, path: String) -> Err<Self> {
-        Self::new(env, name.to_string(), std::fs::read_to_string(path.clone())?, Some(path))
+    /// Creates Parser from filepath
+    pub fn from_file(env: &Env, name: &str, path: String) -> Err<Self> {
+        let src = std::fs::read_to_string(path.clone())?;
+        Self::new(env, name.to_string(), src)
     }
-    /// Create a new Parse with 
-    /// content read from a string
-    pub fn parse_string(env: &Env, name: &str, src: String) -> Err<Self> {
-        Self::new(env, name.to_string(), src.to_string(), None)
-    }
-    /// Create a new Parser, extracting the 
-    /// tokens and abstract syntax tree from source
-    fn new(env: &Env, name: String, src: String, path: Option<String>) -> Err<Self> {
-        let mut parser = 
-            Parser {
-                file: path,
-                source: src,
-                tokens: Vec::new(),
-                module: Mod::new(name, env.prelude())
-            };
 
-        parser.to_toks();
-        parser.to_ast();
+    /// Creates Parser from String
+    pub fn from_src(env: &Env, name: &str, src: &str) -> Err<Self> {
+        Self::new(env, name.to_string(), src.to_string())
+    }
+
+    /// TODO
+    fn new(env: &Env, name: String, src: String) -> Err<Self> {    
+        let mut parser = {
+            Self {
+                src,
+                tokens: Vec::new(),
+                module: Mod::new(name)
+            }
+        };
+        
+        parser.module.import(env.prelude());
+
+        parser.to_toks();   
+        let exec = parser.to_ast()?;
+        parser.module.add_exec(exec);
         Ok(parser)
     }
-    /// Lexically separates src into a Vec of Toks  
+
+    /// Lexically separate src into a Vec of Toks  
     fn to_toks(&mut self) {
         // lexical buffer
         let mut buf = String::new();
 
-        for (i, ch) in self.source.chars().enumerate() {
+        for (i, ch) in self.src.chars().enumerate() {
             if DELMS.contains(&ch) || OPERS.contains(&ch) {
                 if !buf.is_empty() {
                     self.tokens.push(Tok::Sym(buf.clone()));      
@@ -85,15 +86,15 @@ impl Parser {
             }
             else {
                 buf.push(ch);
-                if i + 1 == self.source.len() {
+                if i + 1 == self.src.len() {
                     self.tokens.push(Sym(buf.clone()));
                 }
             }
         }
     }
-    /// Utilizes the Vec of Toks to organize the 
-    /// src into an abstract syntax tree of Nodes
-    fn to_ast(&mut self) -> Err {
+
+    /// Organizes the Vec of Toks into an abstract syntax tree of Nodes
+    fn to_ast(&mut self) -> Err<Obj> {
         let mut curr_node = Node::default();
         let mut prev_nodes = Vec::new();
         
@@ -103,27 +104,36 @@ impl Parser {
                     prev_nodes.push(curr_node);
                     curr_node = Node::default();
                 }
+
                 End => {
                     if let Some(mut prev) = prev_nodes.pop() {
                         let sym = Self::gen_symbol();
-                        let val = self.module.add_sym(sym.as_str(), curr_node.into_obj())?;
+                        let val = self.module.add_sym(sym, curr_node.into_obj())?;
 
                         prev.push(RcCell::from(val));
                         curr_node = prev;
                     }
                 }
+
                 Sym(sym) => {
                     if !self.module.has_sym(&sym) {
-                        //self.module.add_sym(sym, val)
+                        self.module.add_sym(sym.clone(), Obj::from(sym))?;
                     }
+
+                    let obj = RcCell::from(Obj::Sym(self.module.sym(&sym)?));           
+                    curr_node.push(obj);
                 }
                 _ => ()
             }
         }
 
-        Ok(())
+        Ok(Obj::Lst(curr_node))
     }
-    
+
+    pub(crate) fn into(self) -> Mod {
+        self.module
+    }
+
     /// Creates a unique identifier
     fn gen_symbol() -> String {
         format!("G#{}", Id::next_id())

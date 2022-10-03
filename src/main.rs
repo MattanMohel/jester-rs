@@ -1,22 +1,46 @@
 mod core;
+mod prelude;
 
-use crate::core::object::{Obj, str_to_num_obj};
+use crate::core::{
+    env::{Env, Mod},
+    err::Err,
+    parse::Parser
+};
 
-fn main() {
-    let test = ["#b101101", "#hDD6FF", "1003987", "-213897.388", "+823778.11", "0.00", "1_000_000"];
+fn main() -> Err<()>{
+    let mut env = Env::new()?;
 
-    for str in test.iter() {
-        match to_num_obj(&str.to_string()) {
-            Some(num) => {
-                match num {
-                    Obj::F64(f) => println!("f32: {}", f),
-                    Obj::I32(i) => println!("i32: {}", i),
-                    Obj::I64(i) =>  println!("i64: {}", i),
-                    Obj::I128(i) =>  println!("i128: {}", i),
-                    _ => ()
-                }
-            },
-            None => println!("not a number")
-        }
-    }
+    // let node = vec![ RcCell::from(Obj::I32(0)), RcCell::from(Obj::I32(1)), RcCell::from(Obj::I32(2)) ];
+
+    // let obj = Obj::Lst(Node::from(node));
+
+    // println!("{}", obj.to_string(&env));
+
+    let prelude = env.prelude();
+
+    println!("{}", prelude.as_ref().to_string());
+
+    let p = Parser::from_src(&env, "test", 
+    "
+    
+    (set x 10) 
+    (set x (* 101 x))
+    x
+    
+    ")?;
+
+    env.add_mod("test", Mod::from(p))?;
+
+    let m = env.module("test")?;
+
+    println!("{}", m.as_ref().to_string());
+
+    let eval = env.run_module("test")?;
+
+    println!("eval: {}", eval.to_string(&env));
+
+    env.run_repl()?;
+
+
+    Ok(())
 }

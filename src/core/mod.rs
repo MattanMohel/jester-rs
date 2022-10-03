@@ -1,8 +1,12 @@
 pub mod id;
-pub mod context;
+pub mod env;
 pub mod err;
+pub mod eval;
+pub mod fun;
 pub mod node;
 pub mod parse;
-pub mod object;
+pub mod obj;
+pub mod opr;
 pub mod rc_cell;
+pub mod repl;
 pub mod type_id;
