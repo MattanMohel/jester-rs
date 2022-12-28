@@ -1,137 +1,286 @@
-use std::ops::{Deref, DerefMut};
-
 use super::{
     id::Id, 
     node::Node, 
     obj::Obj, 
     rc_cell::RcCell, 
     type_id::TypeId,
-    env::{Mod, Env}, 
-    err::{Err, ErrType::*, AsResult}, 
+    env::Env, 
+    err::Err 
 };
 
-/// delimiters
-const DELMS: [char; 5] = [' ', '\n', '\t', '\"', '#'];
-/// operators
-const OPERS: [char; 6] = ['(', ')', '\'', ',', '@', '"'];
+/// `Jester-rs` delimeters
+const DELIMETERS: [char; 4] = [
+    ' ',  // space
+    '\n', // new line
+    '\t', // tab
+    '\"'  // string
+];
 
+/// `Jester-rs` operators
+const OPERATORS: [char; 5] = [
+    '(',  // s-expression beg 
+    ')',  // s-expression end
+    '\'', // quote 
+    ',',  // exclude
+    '.',  // qualifier
+];
+
+/// Represents a lexical token
+/// 
+/// ## Example
+/// ```
+/// (+ 1 2 3)
+/// ```
+/// 
+/// breaks into `Tok`s: 
+/// ```
+/// ['(', '+', '1', '2', '3', ')']
+/// ```
 #[derive(Clone, PartialEq)]
-enum Tok {
+struct Tok {
+    tok_type: TokType,
+    id: Id
+}
+
+/// Represents the type of a token
+/// 
+/// ## Example
+/// ```
+/// (+ 1 2 3)
+/// ```
+/// 
+/// breaks into `TokType`s: 
+/// ```
+/// ['(': Beg,
+///  '+': Sym, 
+///  '1': Sym,
+///  '2': Sym,
+///  '3': Sym,
+///  ')': End]
+/// ```
+#[derive(Clone, PartialEq)]
+enum TokType {
     Sym(String),
     Beg,
     End,
     Esc,
     Quote,
-    Apply,
 }
 
-use Tok::*;
-
-pub struct Parser {
-    src: String,
-    tokens: Vec<Tok>,
-    module: Mod
+impl Into<Tok> for TokType {
+    fn into(self) -> Tok {
+        Tok { 
+            tok_type: self, 
+            id: Id::new() 
+        }
+    }
 }
 
-impl Parser {
-    /// Creates Parser from filepath
-    pub fn from_file(env: &Env, name: &str, path: String) -> Err<Self> {
-        let src = std::fs::read_to_string(path.clone())?;
-        Self::new(env, name.to_string(), src)
-    }
+use TokType::*;
 
-    /// Creates Parser from String
-    pub fn from_src(env: &Env, name: &str, src: &str) -> Err<Self> {
-        Self::new(env, name.to_string(), src.to_string())
-    }
+struct Expr {
+    beg: Id,
+    end: Id,
+    elems: Vec<Expr>
+}
 
-    /// TODO
-    fn new(env: &Env, name: String, src: String) -> Err<Self> {    
-        let mut parser = {
-            Self {
-                src,
-                tokens: Vec::new(),
-                module: Mod::new(name)
-            }
+struct Lexer {
+    toks: Vec<Tok>,
+    exprs: Vec<Expr>
+}
+
+impl Lexer {
+    pub fn new(env: &mut Env, src: &String) {
+        let mut lexer = Lexer {
+            toks: Vec::new(),
+            exprs: Vec::new(),
         };
-        
-        parser.module.import(env.prelude());
 
-        parser.to_toks();   
-        let exec = parser.to_ast()?;
-        parser.module.add_exec(exec);
-        Ok(parser)
+        lexer.get_toks(src);
+        lexer.get_exprs();
+        // expand operators
+        lexer.to_syntax_tree(env);
     }
 
-    /// Lexically separate src into a Vec of Toks  
-    fn to_toks(&mut self) {
-        // lexical buffer
-        let mut buf = String::new();
+    fn expr_end(&self, tok_beg: &Tok) -> &Tok {
+        let beg = self.toks
+            .iter()
+            .position(|rhs| tok_beg.id == rhs.id)
+            .expect("token not found!");
+        
+        let mut depth = 0;
 
-        for (i, ch) in self.src.chars().enumerate() {
-            if DELMS.contains(&ch) || OPERS.contains(&ch) {
-                if !buf.is_empty() {
-                    self.tokens.push(Tok::Sym(buf.clone()));      
-                    buf.clear();
+        for tok in self.toks.iter().skip(beg) {
+            match tok.tok_type {
+                Beg => depth += 1,
+                End => depth -= 1,
+                _ => ()
+            }
+
+            if depth == 0 {
+                return tok
+            }
+        }
+
+        panic!("incomplete expression!")
+    }
+
+    fn expand_opers(&mut self) {
+        for expr in self.exprs.iter() {
+
+        }
+    }
+
+    fn get_exprs(&mut self) {
+        for tok in self.toks.iter() {
+            match tok.tok_type {
+                Beg => {
+                    let end = self.expr_end(&tok);
+
+                    self.exprs.push(
+                        Expr { 
+                            beg: tok.id.clone(), 
+                            end: end.id.clone(), 
+                            elems: Vec::new() 
+                    })
+                }
+                End => {     
+                    if self.exprs.len() > 1 {
+                        let expr = self.exprs.pop().unwrap();
+                        self.exprs
+                            .last_mut()
+                            .unwrap()
+                            .elems.push(expr);
+                    }
+                }
+                Sym(_) => {
+                    let expr = Expr {
+                        beg: tok.id.clone(),
+                        end: tok.id.clone(),
+                        elems: Vec::new(),
+                    };
+
+                    if self.exprs.is_empty() {
+                        self.exprs.push(expr);
+                    }
+                    else {
+                        self.exprs
+                            .last_mut()
+                            .unwrap()
+                            .elems.push(expr);
+                    }
+                }
+                _ => ()
+            }
+        }
+    }
+
+
+    /// Linearly extract `Tok`s 
+    /// 
+    /// ## Note
+    /// - A special character is either a `delimeter` or `operator`
+    /// - each special character is exactly 1 character
+    /// 
+    /// ## Explanation
+    /// for each character:
+    /// ```
+    /// if delimeter or operator:
+    /// ``` 
+    /// - push buffer then special character as `Tok`s 
+    /// - reset buffer
+    /// ```
+    /// else:
+    /// ```
+    /// - push character to current buffer
+    fn get_toks(&mut self, src: &String) {
+        // lexical buffer
+        let mut lex = String::new();
+
+        for (i, ch) in src.chars().enumerate() {
+            if DELIMETERS.contains(&ch) || OPERATORS.contains(&ch) {     
+                if !lex.is_empty() {
+                    self.toks.push(Sym(lex.clone()).into());
+                    lex.clear();
                 }
 
                 match ch {
-                    '(' => self.tokens.push(Beg),   
-                    ')' => self.tokens.push(End),
-                    ',' => self.tokens.push(Esc),     
-                    '\'' => self.tokens.push(Quote),     
-                    '@' => self.tokens.push(Apply),     
+                    '(' =>  self.toks.push(Beg.into()),   
+                    ')' =>  self.toks.push(End.into()),
+                    ',' =>  self.toks.push(Esc.into()),     
+                    '\'' => self.toks.push(Quote.into()),     
                     _ => ()
                 }
             }
             else {
-                buf.push(ch);
-                if i + 1 == self.src.len() {
-                    self.tokens.push(Sym(buf.clone()));
+                lex.push(ch);
+                if i + 1 == src.len() {
+                    self.toks.push(Sym(lex.clone()).into());
                 }
             }
         }
     }
 
-    /// Organizes the Vec of Toks into an abstract syntax tree of Nodes
-    fn to_ast(&mut self) -> Err<Obj> {
-        let mut curr_node = Node::default();
-        let mut prev_nodes = Vec::new();
+    /// Convert `Vec<Tok>` into syntax tree
+    /// 
+    /// ## Note
+    /// `Jester-rs` represents code as recursive linked lists of `Obj`
+    /// and, for effeciency, the linked lists are represented by `Vec<RcCell<Obj>>`
+    ///
+    /// ## Example
+    /// 
+    /// ```
+    /// 1: (set x (+ 5 5))
+    /// 2: (= x 10)   
+    /// 3: 
+    /// 4: x 
+    /// ```
+    /// translates to...
+    ///
+    /// ```
+    /// (...) --> (...) --> 'x'
+    ///   \         \__ '=' --> 'x' --> '10'
+    ///    \ 
+    ///     \__ 'set' --> 'x' --> (...)
+    ///                             \__ '+' --> '5' --> '5'
+    /// ```
+    fn to_syntax_tree(&mut self, env: &mut Env) -> RcCell<Obj> {
+        let mut cur_node = Node::default();
+        let mut pre_node = Vec::new();
         
-        for tok in self.tokens.iter() {
-            match tok {
+        for tok in self.toks.iter() {
+            match &tok.tok_type {
                 Beg => {
-                    prev_nodes.push(curr_node);
-                    curr_node = Node::default();
+                    pre_node.push(cur_node);     
+                    cur_node = Node::default();
                 }
 
                 End => {
-                    if let Some(mut prev) = prev_nodes.pop() {
-                        let sym = Self::gen_symbol();
-                        let val = self.module.add_sym(sym, curr_node.into_obj())?;
+                    if let Some(mut parent) = pre_node.pop() {
+                        let obj = env.add_sym(&Self::gen_symbol(), cur_node.into_obj());
+                        parent.push(RcCell::from(obj));
 
-                        prev.push(RcCell::from(val));
-                        curr_node = prev;
+                        cur_node = parent;
                     }
                 }
 
                 Sym(sym) => {
-                    if !self.module.has_sym(&sym) {
-                        self.module.add_sym(sym.clone(), Obj::from(sym))?;
+                    if !env.has_sym(&sym) {
+                        env.add_sym(&sym, Obj::from(sym));
                     }
 
-                    let obj = RcCell::from(Obj::Sym(self.module.sym(&sym)?));           
-                    curr_node.push(obj);
+                    // store `RcCell`
+                    let obj = env.get_sym(&sym).unwrap();
+                    // convert `RcCell` to `Sym`
+                    let cell = RcCell::from(Obj::Sym(obj)); 
+
+                    cur_node.push(cell);
                 }
                 _ => ()
             }
         }
 
-        Ok(Obj::Lst(curr_node))
-    }
-
-    pub(crate) fn into(self) -> Mod {
-        self.module
+        env.add_sym(&Self::gen_symbol(), Obj::Lst(cur_node))
     }
 
     /// Creates a unique identifier
@@ -139,113 +288,15 @@ impl Parser {
         format!("G#{}", Id::next_id())
     }   
 
+}
 
-    // fn extract_operators(&mut self) {
-    //     let clone = self.tokens.clone();
-
-    //     for (i, tok) in clone.iter().enumerate().filter(|(_, tok)| **tok == Quote) {
-    //         let mut depth = 0;
-    //         let mut index = i;
-
-    //         loop {
-    //             index += 1;
-    //             let beg_depth = depth;
-
-    //             for (j, tok) in clone.iter().enumerate().skip(index) {
-    //                 match tok {
-    //                     Beg => depth += 1,
-    //                     End => depth -= 1,
-    //                     Esc => {
-    //                         index += 1;
-    //                         break
-    //                     }
-    //                     _ => ()
-    //                 }
-
-    //                 if depth == beg_depth {
-    //                     self.tokens.insert(i, Quote);
-    //                     self.tokens.insert(i, Beg);
-    //                     self.tokens.insert(index, End);
-
-    //                     index = j;
-    //                     break
-    //                 }
-    //             }
-
-    //             if depth == 0 {
-    //                 break
-    //             }
-    //         }
-    //     }
-
-    //     for (i, tok) in clone.iter().enumerate().filter(|tok| tok == Quote) {
-    //          let mut depth = 0;
-    //                 let mut index = i;
-        
-    //                 loop {
-    //                     index += 1;
-    //                     let beg_depth = depth;
-        
-    //                     for (j, tok) in 
-    //                     self.tokens
-    //                         .iter()
-    //                         .enumerate()
-    //                         .skip(index)
-    //                     {
-    //                         match tok.typ {
-    //                             Beg => depth += 1,
-    //                             End => depth -= 1,
-    //                             Esc => {
-    //                                 index += 1;
-    //                                 break
-    //                             }
-    //                             _ => ()
-    //                         }
-        
-    //                         if depth == beg_depth {
-    //                             self.insert_tok(i, Quote);
-    //                             self.insert_tok(i, Beg);
-    //                             self.insert_tok(index, End);
-
-    //                             index = j;
-    //                             break
-    //                         }
-    //                     }
-        
-    //                     if depth == 0 {
-    //                         break
-    //                     }
-    //                 }
-    //         match tok.typ {
-    //             Quote => {
-                   
-    //             }
-    //             Apply => {
-    //                 let mut depth = 1;
-        
-    //                 for (j, tok) in 
-    //                 self.tokens
-    //                     .iter()
-    //                     .enumerate()
-    //                     .rev()
-    //                     .skip(self.tokens.len() - i) 
-    //                 {
-    //                     match tok.typ {
-    //                         Tok::Beg => depth -= 1,
-    //                         Tok::End => depth += 1,
-    //                         _ => ()
-    //                     }
-        
-    //                     if depth == 0 {
-    //                         self.insert_tok(j, Apply);
-
-    //                         break
-    //                     }
-    //                 }
-    //             }
-
-    //             _ => ()
-    //         }
-    //     }
-    // }
+impl Env {
+    pub fn add_from_string(&mut self, src: &str) {
+        Lexer::new(self, &src.to_string());
+    }
+    
+    pub fn add_from_file(&mut self, path: String) {
+        let src = std::fs::read_to_string(path.clone()).expect("couldn't read file!");
+        Lexer::new(self, &src);
+    }
 }

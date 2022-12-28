@@ -7,16 +7,18 @@ use super::{
     env::Env,
     obj::Obj, 
     rc_cell::RcCell, 
-    type_id::TypeId,
     err::{Err, ErrType::*, AsResult}
 };
-
-
+    
+#[derive(Clone, PartialEq)]
+pub struct Node {
+    buf: Vec<RcCell<Obj>>,
+}
 
 impl Default for Node {
     fn default() -> Self {
         Node { 
-            vec: Vec::new() 
+            buf: Vec::new() 
         }
     }
 }
@@ -24,7 +26,7 @@ impl Default for Node {
 impl From<Vec<RcCell<Obj>>> for Node {
     fn from(items: Vec<RcCell<Obj>>) -> Self {
         Self {
-            vec: items 
+            buf: items 
         }
     }
 }
@@ -53,43 +55,33 @@ impl FromIterator<Obj> for Node {
                 .collect::<Vec<_>>())
     }
 }
-    
-#[derive(Clone, PartialEq)]
-pub struct Node {
-    vec: Vec<RcCell<Obj>>,
-}
-
-impl TypeId for Node {
-    fn into_obj(self) -> Obj {
-        Obj::Lst(self)
-    }
-}
 
 impl Node {
     pub fn to_string(&self, env: &Env) -> String {
-        self.vec
+        self.buf
             .iter()
             .enumerate()
-            .fold(String::new(), |acc, (i, obj)|
+            .fold(String::new(), |acc, (i, obj)| {
                 if i == 0 {
-                    format!("{}", obj.as_ref().to_string(env).as_str())
+                    format!("{}", obj.as_ref().to_string(env))
                 } 
                 else if i + 1 == self.len() {
-                    format!("({} {})", acc, obj.as_ref().to_string(env).as_str())
+                    format!("({} {})", acc, obj.as_ref().to_string(env))
                 }
                 else {
-                    format!("{} {}", acc, obj.as_ref().to_string(env).as_str())
-                })
+                    format!("{} {}", acc, obj.as_ref().to_string(env))
+                }
+            })
     }
 
     pub fn get(&self, i: usize) -> Err<&RcCell<Obj>> {
-        self.vec
+        self.buf
             .get(i)
             .ok_or(OutOfBound)
     }
 
     pub fn len(&self) -> usize {
-        self.vec.len()
+        self.buf.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -97,16 +89,16 @@ impl Node {
     }
 
     pub fn push(&mut self, item: RcCell<Obj>) {
-        self.vec.push(item)
+        self.buf.push(item)
     }
 
     pub fn insert(&mut self, index: usize, item: RcCell<Obj>) {
-        self.vec.insert(index, item)
+        self.buf.insert(index, item)
     }
 
     pub fn remove(&mut self, index: usize) -> Err<Obj> {
-        (index < self.vec.len()).ok_then(
-            self.vec.remove(index).as_ref().clone(), 
+        (index < self.buf.len()).ok_then(
+            self.buf.remove(index).as_ref().clone(), 
             OutOfBound
         )
     }
@@ -158,8 +150,8 @@ impl<'a> Iterator for NodeIter<'a> {
 impl<'a> NodeIter<'a> {
     fn new(node: &'a Node, offset: usize) -> Self {
         NodeIter { 
-            node: node, 
-            offset: offset, 
+            node, 
+            offset, 
             i: 0 
         }
     }
@@ -222,7 +214,7 @@ impl<'a> NodeIter<'a> {
             param
                 .as_mut()
                 .deref_mut()
-                .set(&env.eval(arg.as_ref().deref())?);
+                .assign(&env.eval(arg.as_ref().deref())?);
         }
 
         let ret = self.progn(|obj, _| env.eval(obj.as_ref().deref()));
@@ -231,7 +223,7 @@ impl<'a> NodeIter<'a> {
             param
                 .as_mut()
                 .deref_mut()
-                .set(&env.eval(arg.as_ref().deref())?);
+                .assign(&env.eval(arg.as_ref().deref())?);
         }
 
         ret

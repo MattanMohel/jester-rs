@@ -9,7 +9,6 @@ use super::{
     obj::Obj::{*, self},
     err::Err,
     env::Env,
-    parse::Parser,
     fun::Callable, 
     type_id::TypeId
 };
@@ -22,8 +21,8 @@ impl Env {
         match obj.deref() {
             Lst(node) if !node.is_empty() => {                
                 match self.eval(node.get(0)?.as_ref())? {
-                    FnNative(nat) => nat.call(self, node.iter_from(1)),
-                    FnBridge(brg) => brg.call(self, node.iter_from(1)),
+                    Native(nat) => nat.call(self, node.iter_from(1)),
+                    Bridge(brg) => brg.call(self, node.iter_from(1)),
                     
                     _ => Ok(node.evaled(self)?.into_obj())           
                 }          
@@ -36,11 +35,13 @@ impl Env {
     }
 
     pub fn run(&self) -> Err<Obj> {
-        self.prelude().as_ref().run(self)
+        // self.prelude().as_ref().run(self)
+        todo!()
     }
 
     pub fn run_module(&self, name: &str) -> Err<Obj> {
-        self.module(name)?.as_ref().run(self)
+        // self.module(name)?.as_ref().run(self)
+        todo!()
     }
 
     pub fn run_repl(&self) -> Err<Obj> {

@@ -19,12 +19,6 @@ impl Default for RcCell<Obj> {
     }
 }
 
-impl TypeId for RcCell<Obj> {
-    fn into_obj(self) -> Obj {
-        todo!()
-    }
-}
-
 impl<T> From<T> for RcCell<T> {
     fn from(raw: T) -> Self {
         Self { 

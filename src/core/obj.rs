@@ -9,7 +9,32 @@ use super::{
     fun::{FnNative, Bridge, FnBridge}
 };
 
-
+/// `Jester-rs` representation of data
+#[derive(Clone, PartialEq)]
+pub enum Obj {
+    /// `symbol`
+    Sym(RcCell<Obj>),
+    /// `list`
+    Lst(Node),
+    /// `float: Primtive + Numeric`
+    F64(f64),
+    /// `i32: Primtive + Numeric`
+    I32(i32),
+    /// `i64: Primtive + Numeric`
+    I64(i64),
+    /// `i128: Primtive + Numeric`
+    I128(i128),
+    /// `bool: Primtive`
+    Bool(bool),
+    /// `string`
+    Str(String),
+    /// `native-fn`
+    Native(FnNative),
+    /// `bridge-fn`
+    Bridge(FnBridge),
+    /// `nil`
+    Nil(),
+}
 
 use Obj::*;
 
@@ -27,58 +52,45 @@ impl From<&String> for Obj {
     }
 }
 
-#[derive(Clone, PartialEq)]
-pub enum Obj {
-    Sym(RcCell<Obj>),
-    Lst(Node),
-    
-    I32(i32),
-    I64(i64),
-    I128(i128),
-    F64(f64),
-
-    Bool(bool),
-    Str(String),
-
-    FnNative(FnNative),
-    FnBridge(FnBridge),
-
-    Nil(),
+impl From<Bridge> for Obj {
+    fn from(func: Bridge) -> Self {
+        Obj::Bridge(FnBridge::from(func))
+    }
 }
 
-
 impl Obj {
-    /// Sets object value to clone of `other<Obj>`
-    pub fn set(&mut self, other: &Obj) -> Err {
+    /// Assigns value to clone of `other`
+    pub fn assign(&mut self, other: &Obj) -> Err {
         match self {
-            Sym(raw) => *raw.as_mut() = other.clone(),
+            Sym(obj) => *obj.as_mut() = other.clone(),
             _ => return Err(MisType)
         }
         Ok(())
     }
 
-    /// Sets object value to clone of `other<T>`
-    pub fn set_to<T: TypeId>(&mut self, other: T) -> Err {
+    /// Assigns value to clone of `other` as an `Obj`
+    pub fn assign_to<T: TypeId>(&mut self, other: T) -> Err {
         match self {
-            Sym(raw) => *raw.as_mut() = other.into_obj(),
+            Sym(obj) => *obj.as_mut() = other.into_obj(),
             _ => return Err(MisType)
         }
         Ok(())    }
-
-    /// Creates a new `Obj::FnBridge(exec)`
-    pub fn new_bridge(exec: Bridge) -> Obj {
-        Obj::FnBridge(FnBridge::from(exec))
-    }
 
     /// Creates a new `Obj::T`
     pub fn new_value<T: TypeId>(val: T) -> Obj {
         val.into_obj()
     }
 
+    /// Creates a new `Obj::FnBridge(bridge)`
+    pub fn new_bridge(bridge: Bridge) -> Obj {
+        Obj::Bridge(FnBridge::from(bridge))
+    }
+
+
     /// Returns the value of object as String
     pub fn to_string(&self, env: &Env) -> String {
         match self {
-            Sym(sym)    => env.cell_sym(sym).unwrap(),
+            Sym(sym)    => todo!(),
             Lst(lst)    => lst.to_string(env),
             I32(num)    => num.to_string(),
             I64(num)    => num.to_string(),
@@ -86,16 +98,16 @@ impl Obj {
             F64(num)    => num.to_string(),
             Bool(bool)  => bool.to_string(),
             Str(str)    => str.clone(),
-            FnNative(_) => "<native>".to_string(),
-            FnBridge(_) => "<bridge>".to_string(),
+            Native(_) => "<native>".to_string(),
+            Bridge(_) => "<bridge>".to_string(),
             Nil()       => "nil".to_string(),
         }
     }
 
     /// Returns the type of object as String
-    pub fn to_type_string(&self) -> String {
+    pub fn type_string(&self) -> String {
         match self {
-            Sym(_)      => "quote",
+            Sym(_)      => RcCell::<Obj>::type_str(),
             Lst(_)      => "list",
             I32(_)      => "i32",
             I64(_)      => "i64",
@@ -103,8 +115,8 @@ impl Obj {
             F64(_)      => "f64",
             Bool(_)     => "bool",
             Str(_)      => "string",
-            FnNative(_) => "native",
-            FnBridge(_) => "bridge",
+            Native(_) => "native",
+            Bridge(_) => "bridge",
             Nil()       => "nil",
         }
         .to_string()
@@ -133,21 +145,21 @@ impl Obj {
     }
        
     /// Converts a String into an `Obj::I32|I64|I128|F64`
-    /// ### Delimiter
+    /// ## Delimiter
     /// Number can be separated by '_'
     /// - i.e. `100_000`  `-1_0_0_0_0_0.`  `+_100000.__123__`
-    /// ### Binary
+    /// ## Binary
     /// Numbers can be interpreted as binary
     /// - i.e. `#b0001_1010_0100`
-    /// ### Hexadecimal
+    /// ## Hexadecimal
     /// Numbers can be interpreted as hexadecimal
     /// - i.e. `#h6_68A0`
-    /// ### Typing
+    /// ## Typing
     /// The num-type (`i32|i64|i128|f64`) is chosen
     /// chosen depending on the size of the number
     /// ## Error
-    /// * Incorrect form : `Err(MisForm)`
-    /// * Numeral overflow: `Err(OverFlow)`
+    /// - Incorrect format: `Err(MisForm)`
+    /// - Numeral overflow: `Err(OverFlow)`
     pub fn sym_to_num(str: &String) -> Err<Obj> {
         if str.is_empty() {
             return Err(MisForm)

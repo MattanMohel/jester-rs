@@ -1,18 +1,22 @@
 use crate::core::{
     env::Env,
     err::Err, 
-    obj::Obj,
+    obj::Obj, type_id::TypeId,
 };
 
 impl Env {
-    pub fn std_lib(&mut self) -> Err {
-        self.add_sym("set", Obj::new_bridge(|env, args| {
+    pub fn std_lib(&mut self) {
+        self.add_bridge("set", |env, args| 
+        {
             let val = env.eval(args.get(1)?.as_ref())?;
-            args.get(0)?.as_mut().set(&val)?;
+            args.get(0)?.as_mut().assign(&val)?;
 
             Ok(val)
-        }))?;
+        });
 
-        Ok(())
+        self.add_bridge("quote", |_, args| 
+        {
+            Ok(args.get(0)?.as_ref().clone())
+        });
     }
 }

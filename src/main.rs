@@ -2,44 +2,46 @@ mod core;
 mod prelude;
 
 use crate::core::{
-    env::{Env, Mod},
+    env::Env,
     err::Err,
-    parse::Parser
 };
 
 fn main() -> Err<()>{
     let mut env = Env::new()?;
 
-    // let node = vec![ RcCell::from(Obj::I32(0)), RcCell::from(Obj::I32(1)), RcCell::from(Obj::I32(2)) ];
+    // // let node = vec![ RcCell::from(Obj::I32(0)), RcCell::from(Obj::I32(1)), RcCell::from(Obj::I32(2)) ];
 
-    // let obj = Obj::Lst(Node::from(node));
+    // // let obj = Obj::Lst(Node::from(node));
 
-    // println!("{}", obj.to_string(&env));
+    // // println!("{}", obj.to_string(&env));
 
-    let prelude = env.prelude();
+    // let prelude = env.prelude();
 
-    println!("{}", prelude.as_ref().to_string());
+    // println!("{}", prelude.as_ref().to_string());
 
-    let p = Parser::from_src(&env, "test", 
-    "
+    // let res = env.add_from_string(
+    // "
+    // (set x -1_234_567) 
+    // (set y #b10011)
+    // (+ x y)
+    // ");
+
+    // let inner = res.as_raw().borrow().clone();
+    // let inner = inner.is_list().unwrap();
+    // let result = inner.iter().progn(|obj, _| env.eval(obj.as_ref()));
     
-    (set x 10) 
-    (set x (* 101 x))
-    x
-    
-    ")?;
+    // println!("{}", result.unwrap().to_string(&env));
+    // env.add_mod("test", Mod::from(p.module()))?;
 
-    env.add_mod("test", Mod::from(p))?;
+    // let m = env.module("test")?;
 
-    let m = env.module("test")?;
+    // println!("{}", m.as_ref().to_string());
 
-    println!("{}", m.as_ref().to_string());
+    // let eval = env.run_module("test")?;
 
-    let eval = env.run_module("test")?;
+    // println!("eval: {}", eval.to_string(&env));
 
-    println!("eval: {}", eval.to_string(&env));
-
-    env.run_repl()?;
+    // env.run_repl()?;
 
 
     Ok(())
