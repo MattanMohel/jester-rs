@@ -51,12 +51,7 @@ struct Tok {
 /// 
 /// breaks into `TokType`s: 
 /// ```
-/// ['(': Beg,
-///  '+': Sym, 
-///  '1': Sym,
-///  '2': Sym,
-///  '3': Sym,
-///  ')': End]
+/// [Beg, Sym, Sym, Sym, Sym, End]
 /// ```
 #[derive(Clone, PartialEq)]
 enum TokType {
@@ -90,7 +85,7 @@ struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(env: &mut Env, src: &String) {
+    pub fn new(env: &mut Env, src: &String) -> Err<Obj> {
         let mut lexer = Lexer {
             toks: Vec::new(),
             exprs: Vec::new(),
@@ -98,8 +93,13 @@ impl Lexer {
 
         lexer.get_toks(src);
         lexer.get_exprs();
-        // expand operators
-        lexer.to_syntax_tree(env);
+
+        // - expand operators - //
+
+        let tree = lexer.to_syntax_tree(env);
+        tree
+            .iter()
+            .progn(|obj| env.eval(obj.as_ref()))
     }
 
     fn expr_end(&self, tok_beg: &Tok) -> &Tok {
@@ -125,11 +125,7 @@ impl Lexer {
         panic!("incomplete expression!")
     }
 
-    fn expand_opers(&mut self) {
-        for expr in self.exprs.iter() {
-
-        }
-    }
+    fn expand_opers(&mut self) {}
 
     fn get_exprs(&mut self) {
         for tok in self.toks.iter() {
@@ -174,7 +170,6 @@ impl Lexer {
             }
         }
     }
-
 
     /// Linearly extract `Tok`s 
     /// 
@@ -244,7 +239,7 @@ impl Lexer {
     ///     \__ 'set' --> 'x' --> (...)
     ///                             \__ '+' --> '5' --> '5'
     /// ```
-    fn to_syntax_tree(&mut self, env: &mut Env) -> RcCell<Obj> {
+    fn to_syntax_tree(&mut self, env: &mut Env) -> Node {
         let mut cur_node = Node::default();
         let mut pre_node = Vec::new();
         
@@ -280,14 +275,13 @@ impl Lexer {
             }
         }
 
-        env.add_sym(&Self::gen_symbol(), Obj::Lst(cur_node))
+        cur_node
     }
 
     /// Creates a unique identifier
     fn gen_symbol() -> String {
         format!("G#{}", Id::next_id())
     }   
-
 }
 
 impl Env {

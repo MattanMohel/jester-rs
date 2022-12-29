@@ -19,17 +19,24 @@ impl Env {
         T: Deref<Target=Obj>
     {    
         match obj.deref() {
-            Lst(node) if !node.is_empty() => {                
-                match self.eval(node.get(0)?.as_ref())? {
-                    Native(nat) => nat.call(self, node.iter_from(1)),
-                    Bridge(brg) => brg.call(self, node.iter_from(1)),
+            Lst(node) if !node.is_empty() => {
+                let fst = node.get(0)?;    
+
+                match self.eval(fst.as_ref())? {
+                    Native(f) => f.call(self, node.iter_from(1)),
+                    Bridge(f) => f.call(self, node.iter_from(1)),
                     
-                    _ => Ok(node.evaled(self)?.into_obj())           
+                    _ => {
+                        Ok(node
+                            .iter()
+                            .evaled(self)?
+                            .into_obj()
+                        )
+                    }           
                 }          
             }
 
-            Sym(sym) => Ok(sym.as_ref().clone()),
-            
+            Sym(sym) => Ok(sym.clone_inner()),   
             _ => Ok(obj.clone())
         }
     }

@@ -60,21 +60,26 @@ impl From<Bridge> for Obj {
 
 impl Obj {
     /// Assigns value to clone of `other`
-    pub fn assign(&mut self, other: &Obj) -> Err {
+    /// 
+    /// ## Note
+    /// Panics if `self != Sym`
+    pub fn assign(&mut self, other: &Obj) {
         match self {
             Sym(obj) => *obj.as_mut() = other.clone(),
-            _ => return Err(MisType)
+            _ => panic!("tried assigning to non-symbol!")
         }
-        Ok(())
     }
 
     /// Assigns value to clone of `other` as an `Obj`
-    pub fn assign_to<T: TypeId>(&mut self, other: T) -> Err {
+    ///     
+    /// ## Note
+    /// Panics if `self != Sym`
+    pub fn assign_to<T: TypeId>(&mut self, other: T) {
         match self {
             Sym(obj) => *obj.as_mut() = other.into_obj(),
-            _ => return Err(MisType)
+            _ => panic!("tried assigning to non-symbol!")
         }
-        Ok(())    }
+    }
 
     /// Creates a new `Obj::T`
     pub fn new_value<T: TypeId>(val: T) -> Obj {
@@ -91,7 +96,7 @@ impl Obj {
     pub fn to_string(&self, env: &Env) -> String {
         match self {
             Sym(sym)    => todo!(),
-            Lst(lst)    => lst.to_string(env),
+            Lst(lst)    => todo!(),
             I32(num)    => num.to_string(),
             I64(num)    => num.to_string(),
             I128(num)   => num.to_string(),

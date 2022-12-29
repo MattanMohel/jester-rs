@@ -13,7 +13,9 @@ pub trait Callable {
 
 impl Callable for FnNative {
     fn call(&self, env: &Env, args: NodeIter) -> Err<Obj> {
-        self.exec.iter().progn_scoped(env, self.params.iter(), args)
+        self.exec
+            .iter()
+            .progn_scoped(env, self.params.iter(), args)
     }
 }
 

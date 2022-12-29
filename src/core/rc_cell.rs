@@ -54,6 +54,13 @@ impl<T> RcCell<T> {
         &self.raw
     }
 
+    pub fn clone_inner(&self) -> T 
+    where
+        T: Clone
+    {
+        self.as_ref().clone()
+    }
+
     pub fn raw_cmp(&self, other: &Self) -> bool {
         self.as_raw().as_ptr() == other.as_raw().as_ptr()
     }

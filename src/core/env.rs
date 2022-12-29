@@ -31,6 +31,7 @@ impl Env {
         let mut env = Self::default();
         env.math_lib();
         env.std_lib();
+        env.io_lib();
             
         Ok(env)
     }

@@ -9,6 +9,15 @@ use crate::core::{
 fn main() -> Err<()>{
     let mut env = Env::new()?;
 
+    env.add_from_string(
+    "
+    (println 10 15 20)
+    (print 99)
+    (println 11)
+    (+ 1 2 3)
+    "
+    );
+
     // // let node = vec![ RcCell::from(Obj::I32(0)), RcCell::from(Obj::I32(1)), RcCell::from(Obj::I32(2)) ];
 
     // // let obj = Obj::Lst(Node::from(node));
