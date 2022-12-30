@@ -1,15 +1,14 @@
 use std::collections::HashMap;
-use super::fun::Bridge;
-use super::obj::Obj;
-use super::rc_cell::RcCell;
-use super::err::Err;
-use super::type_id::{TypeId, Primitive};
+
+use super::{
+    obj::Obj,
+    err::Err,
+    fun::Bridge, 
+    rc_cell::RcCell,
+    type_id::Primitive
+};
 
 // TODO: work on namespaces - module tree qualifiers
-
-pub trait SymStream {
-
-}
 
 /// `Jester-rs` Environment struct
 #[derive(Clone)]
@@ -32,6 +31,7 @@ impl Env {
         env.math_lib();
         env.std_lib();
         env.io_lib();
+        env.list_lib();
             
         Ok(env)
     }
@@ -52,14 +52,28 @@ impl Env {
         self.symbols
             .keys()
             .any(|rhs| sym == rhs)
+    } 
+
+    pub fn get_sym_id(&self, obj: &RcCell<Obj>) -> Option<String> {
+        self.symbols
+            .iter()
+            .find_map(|rhs| {
+                if obj.raw_eq(rhs.1) {
+                    Some(rhs.0.to_uppercase())
+                }
+                else {
+                    None
+                }
+            })
+            
     }
 
     pub fn add_primitive<T: Primitive>(&mut self, sym: &str, prim: T) -> RcCell<Obj> {
-        self.add_sym(sym, prim.into_obj())
+        self.add_sym(sym, prim.as_obj())
     }
 
     pub fn add_bridge(&mut self, sym: &str, bridge: Bridge) -> RcCell<Obj> {
-        let obj = Obj::new_bridge(bridge);
+        let obj = Obj::new_bridge(sym.to_string(), bridge);
         self.add_sym(sym, obj)
     }
 }

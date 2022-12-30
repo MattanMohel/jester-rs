@@ -1,5 +1,6 @@
-use std::{cell::{RefCell, Ref, RefMut}, rc::Rc, ops::{DerefMut, Deref}};
-use super::{type_id::TypeId, obj::Obj::{self, *}};
+use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
+
+use super::{obj::Obj, err::Err};
 
 pub struct RcCell<T> {
     raw: Rc<RefCell<T>>
@@ -10,12 +11,6 @@ impl<T> Clone for RcCell<T> {
         Self { 
             raw: Rc::clone(&self.raw)
         }
-    }
-}
-
-impl Default for RcCell<Obj> {
-    fn default() -> Self {
-        Self::from(Nil())
     }
 }
 
@@ -61,7 +56,20 @@ impl<T> RcCell<T> {
         self.as_ref().clone()
     }
 
-    pub fn raw_cmp(&self, other: &Self) -> bool {
+    pub fn raw_eq(&self, other: &Self) -> bool {
         self.as_raw().as_ptr() == other.as_raw().as_ptr()
+    }
+}
+
+impl RcCell<Obj> {
+
+    pub fn map_inner<F>(&self, mut map: F) -> Err<Obj>
+    where
+        F: FnMut(RefMut<Obj>) -> Err<Obj>
+    {
+        let mut sym = self.as_mut();
+        let sym = sym.is_symbol_mut()?;
+
+        map(sym.as_mut())
     }
 }

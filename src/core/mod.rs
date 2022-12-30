@@ -6,7 +6,7 @@ pub mod fun;
 pub mod node;
 pub mod parse;
 pub mod obj;
-pub mod opr;
+pub mod op;
 pub mod rc_cell;
 pub mod repl;
 pub mod type_id;

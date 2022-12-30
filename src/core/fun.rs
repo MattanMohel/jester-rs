@@ -3,19 +3,33 @@ use super::{
     env::Env, 
     err::Err,
     obj::Obj,
-    type_id::TypeId,
     node::{Node, NodeIter}, 
 };
 
+pub type Bridge = fn(&Env, NodeIter) -> Err<Obj>;
+
 pub trait Callable {
     fn call(&self, env: &Env, args: NodeIter) -> Err<Obj>;
+    fn name(&self) -> &String;
+}
+
+#[derive(Clone)]
+pub struct FnNative {
+    name: String,
+    params: Node,
+    body: Node,
+    id: Id
 }
 
 impl Callable for FnNative {
     fn call(&self, env: &Env, args: NodeIter) -> Err<Obj> {
-        self.exec
+        self.body
             .iter()
             .progn_scoped(env, self.params.iter(), args)
+    }
+
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -25,39 +39,42 @@ impl PartialEq for FnNative {
     }
 }
 
-#[derive(Clone)]
-pub struct FnNative {
-    exec: Node,
-    params: Node,
-    id: Id
-}
-
-pub type Bridge = fn(&Env, NodeIter) -> Err<Obj>;
-
-impl Callable for FnBridge {
-    fn call(&self, env: &Env, args: NodeIter) -> Err<Obj> {
-        (self.exec)(env, args)
-    }
-}
-
-impl PartialEq for FnBridge {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-
-impl From<Bridge> for FnBridge {
-    fn from(exec: Bridge) -> Self {
-        FnBridge { 
-            exec,
+impl FnNative {
+    pub fn new(name: String, params: Node, body: Node) -> Self {
+        Self {
+            name,
+            params,
+            body,
             id: Id::new()
         }
+    }
+
+    pub fn params(&self) -> &Node {
+        &self.params
     }
 }
 
 #[derive(Clone)]
 pub struct FnBridge {
-    exec: Bridge,
-    id: Id
+    name: String,
+    body: Bridge
+}
+
+impl FnBridge {
+    pub fn new(name: String, body: Bridge) -> Self {
+        FnBridge { 
+            name,
+            body
+        }
+    }
+}
+
+impl Callable for FnBridge {
+    fn call(&self, env: &Env, args: NodeIter) -> Err<Obj> {
+        (self.body)(env, args)
+    }
+
+    fn name(&self) -> &String {
+        &self.name
+    }
 }

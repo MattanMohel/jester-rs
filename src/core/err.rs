@@ -48,6 +48,7 @@ pub enum ErrType {
     OverFlow,
     Unbalanced,  
     OutOfBound,
+    RuntimeAssert
 }
 
 impl Error for ErrType {}

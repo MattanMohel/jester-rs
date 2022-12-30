@@ -17,12 +17,11 @@ const DELIMETERS: [char; 4] = [
 ];
 
 /// `Jester-rs` operators
-const OPERATORS: [char; 5] = [
+const OPERATORS: [char; 4] = [
     '(',  // s-expression beg 
     ')',  // s-expression end
     '\'', // quote 
     ',',  // exclude
-    '.',  // qualifier
 ];
 
 /// Represents a lexical token
@@ -252,8 +251,8 @@ impl Lexer {
 
                 End => {
                     if let Some(mut parent) = pre_node.pop() {
-                        let obj = env.add_sym(&Self::gen_symbol(), cur_node.into_obj());
-                        parent.push(RcCell::from(obj));
+                        let obj = env.add_sym(&Env::gen_symbol(), cur_node.as_obj());
+                        parent.push(obj);
 
                         cur_node = parent;
                     }
@@ -264,13 +263,10 @@ impl Lexer {
                         env.add_sym(&sym, Obj::from(sym));
                     }
 
-                    // store `RcCell`
                     let obj = env.get_sym(&sym).unwrap();
-                    // convert `RcCell` to `Sym`
-                    let cell = RcCell::from(Obj::Sym(obj)); 
-
-                    cur_node.push(cell);
+                    cur_node.push(RcCell::from(Obj::Sym(obj)))
                 }
+                
                 _ => ()
             }
         }
@@ -278,19 +274,19 @@ impl Lexer {
         cur_node
     }
 
-    /// Creates a unique identifier
-    fn gen_symbol() -> String {
-        format!("G#{}", Id::next_id())
-    }   
 }
 
 impl Env {
-    pub fn add_from_string(&mut self, src: &str) {
-        Lexer::new(self, &src.to_string());
+    pub fn gen_symbol() -> String {
+        format!("G#{}", Id::next_id())
+    }   
+
+    pub fn add_from_string(&mut self, src: &str) -> Err<Obj> {
+        Lexer::new(self, &src.to_string())
     }
     
-    pub fn add_from_file(&mut self, path: String) {
+    pub fn add_from_file(&mut self, path: String) -> Err<Obj> {
         let src = std::fs::read_to_string(path.clone()).expect("couldn't read file!");
-        Lexer::new(self, &src);
+        Lexer::new(self, &src)
     }
 }

@@ -1,5 +1,5 @@
 use super::{
-    obj::Obj::{*, self},
+    obj::Obj::{self, *},
     err::{Err, ErrType::*}
 };
 

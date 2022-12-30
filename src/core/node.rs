@@ -1,16 +1,16 @@
-use std::{
-    fmt,
-    cell::{RefMut, Ref}, ops::{Deref, DerefMut}
-};
+use std::ops::DerefMut;
+use std::ops::Deref;
+use std::cell::RefMut;
+use std::cell::Ref;
 
-use super::{
-    env::Env,
-    obj::Obj, 
-    rc_cell::RcCell, 
-    err::{Err, ErrType::*, AsResult}
-};
+use super::env::Env;
+use super::obj::Obj;
+use super::err::Err;
+use super::err::AsResult;
+use super::err::ErrType::*;
+use super::rc_cell::RcCell;
     
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Node {
     buf: Vec<RcCell<Obj>>,
 }
@@ -122,7 +122,7 @@ impl<'a> NodeIter<'a> {
     }
     
     pub fn len(&self) -> usize {
-        self.node.len()
+        self.node.len() - self.beg
     }
 
     pub fn is_empty(&self) -> bool {
@@ -139,10 +139,8 @@ impl<'a> NodeIter<'a> {
             .map(|item| item.as_ref())
     }
 
-    pub fn get_mut(&self, index: usize) -> Err<RefMut<Obj>> {
-        self.node
-            .get(self.beg + index)
-            .map(|item| item.as_mut())
+    pub fn shift(&self) -> Self {
+        Self::new(self.node, self.beg + 1)
     }
 
     /// Return a new `Node` with elements mapped by `map`
@@ -175,7 +173,7 @@ impl<'a> NodeIter<'a> {
     {        
         let bounds = self
             .len()
-            .checked_sub(self.beg + 1)
+            .checked_sub(1)
             .unwrap_or(0);  
 
         for i in 0..bounds {
@@ -195,7 +193,7 @@ impl<'a> NodeIter<'a> {
     {        
         let bounds = self
             .len()
-            .checked_sub(self.beg + 1)
+            .checked_sub(1)
             .unwrap_or(0);  
 
         for i in 0..bounds {
@@ -227,9 +225,12 @@ impl<'a> NodeIter<'a> {
         I1: Iterator<Item = &'b RcCell<Obj>> + Clone, 
         I2: Iterator<Item = &'c RcCell<Obj>> + Clone,
     {   
-        let prev = params.clone();   
+        let prev = params
+            .clone()
+            .map(|obj| env.eval(obj.as_ref()))
+            .collect::<Err<Node>>()?;   
         
-        for (param, arg) in params.clone().zip(args.clone()) {   
+        for (param, arg) in params.clone().zip(args.clone()) { 
             param
                 .as_mut()
                 .deref_mut()
@@ -238,11 +239,11 @@ impl<'a> NodeIter<'a> {
 
         let res = self.progn(|obj| env.eval(obj.as_ref()));
 
-        for (param, arg) in params.zip(prev) {   
+        for (param, val) in params.zip(prev.iter()) {   
             param
                 .as_mut()
                 .deref_mut()
-                .assign(&env.eval(arg.as_ref().deref())?);
+                .assign(&env.eval(val.as_ref().deref())?);
         }
 
         res
