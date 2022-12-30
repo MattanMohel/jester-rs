@@ -78,3 +78,50 @@ impl Callable for FnBridge {
         &self.name
     }
 }
+
+#[derive(Clone)]
+pub struct FnMacro {
+    name: String,
+    params: Node,
+    body: Node,
+    id: Id
+}
+
+impl Callable for FnMacro {
+    fn call(&self, env: &Env, args: NodeIter) -> Err<Obj> {
+        // store macro expansion
+        let exp = self.expand(env, args)?;
+        env.eval(&exp)
+    }
+
+    fn name(&self) -> &String {
+        &self.name
+    }
+}
+
+impl PartialEq for FnMacro {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl FnMacro {
+    pub fn new(name: String, params: Node, body: Node) -> Self {
+        Self {
+            name,
+            params,
+            body,
+            id: Id::new()
+        }
+    }
+
+    pub fn params(&self) -> &Node {
+        &self.params
+    }
+
+    pub fn expand(&self, env: &Env, args: NodeIter) -> Err<Obj> {
+        self.body
+            .iter()
+            .progn_macro(env, self.params.iter(), args)
+    }
+}

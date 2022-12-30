@@ -1,3 +1,7 @@
+use std::io::Write;
+use std::time::{Duration, Instant};
+
+use super::lex::META;
 use super::{
     id::Id, 
     node::Node, 
@@ -5,78 +9,15 @@ use super::{
     rc_cell::RcCell, 
     type_id::TypeId,
     env::Env, 
-    err::Err 
-};
-
-/// `Jester-rs` delimeters
-const DELIMETERS: [char; 4] = [
-    ' ',  // space
-    '\n', // new line
-    '\t', // tab
-    '\"'  // string
-];
-
-/// `Jester-rs` operators
-const OPERATORS: [char; 4] = [
-    '(',  // s-expression beg 
-    ')',  // s-expression end
-    '\'', // quote 
-    ',',  // exclude
-];
-
-/// Represents a lexical token
-/// 
-/// ## Example
-/// ```
-/// (+ 1 2 3)
-/// ```
-/// 
-/// breaks into `Tok`s: 
-/// ```
-/// ['(', '+', '1', '2', '3', ')']
-/// ```
-#[derive(Clone, PartialEq)]
-struct Tok {
-    tok_type: TokType,
-    id: Id
-}
-
-/// Represents the type of a token
-/// 
-/// ## Example
-/// ```
-/// (+ 1 2 3)
-/// ```
-/// 
-/// breaks into `TokType`s: 
-/// ```
-/// [Beg, Sym, Sym, Sym, Sym, End]
-/// ```
-#[derive(Clone, PartialEq)]
-enum TokType {
-    Sym(String),
-    Beg,
-    End,
-    Esc,
-    Quote,
-}
-
-impl Into<Tok> for TokType {
-    fn into(self) -> Tok {
-        Tok { 
-            tok_type: self, 
-            id: Id::new() 
-        }
+    err::Err,
+    lex::{
+        Tok,
+        TokType::*,
+        Expr,
+        DELIMETERS,
+        OPERATORS
     }
-}
-
-use TokType::*;
-
-struct Expr {
-    beg: Id,
-    end: Id,
-    elems: Vec<Expr>
-}
+};
 
 struct Lexer {
     toks: Vec<Tok>,
@@ -92,82 +33,13 @@ impl Lexer {
 
         lexer.get_toks(src);
         lexer.get_exprs();
-
-        // - expand operators - //
+        lexer.expand_ops();
 
         let tree = lexer.to_syntax_tree(env);
+
         tree
             .iter()
             .progn(|obj| env.eval(obj.as_ref()))
-    }
-
-    fn expr_end(&self, tok_beg: &Tok) -> &Tok {
-        let beg = self.toks
-            .iter()
-            .position(|rhs| tok_beg.id == rhs.id)
-            .expect("token not found!");
-        
-        let mut depth = 0;
-
-        for tok in self.toks.iter().skip(beg) {
-            match tok.tok_type {
-                Beg => depth += 1,
-                End => depth -= 1,
-                _ => ()
-            }
-
-            if depth == 0 {
-                return tok
-            }
-        }
-
-        panic!("incomplete expression!")
-    }
-
-    fn expand_opers(&mut self) {}
-
-    fn get_exprs(&mut self) {
-        for tok in self.toks.iter() {
-            match tok.tok_type {
-                Beg => {
-                    let end = self.expr_end(&tok);
-
-                    self.exprs.push(
-                        Expr { 
-                            beg: tok.id.clone(), 
-                            end: end.id.clone(), 
-                            elems: Vec::new() 
-                    })
-                }
-                End => {     
-                    if self.exprs.len() > 1 {
-                        let expr = self.exprs.pop().unwrap();
-                        self.exprs
-                            .last_mut()
-                            .unwrap()
-                            .elems.push(expr);
-                    }
-                }
-                Sym(_) => {
-                    let expr = Expr {
-                        beg: tok.id.clone(),
-                        end: tok.id.clone(),
-                        elems: Vec::new(),
-                    };
-
-                    if self.exprs.is_empty() {
-                        self.exprs.push(expr);
-                    }
-                    else {
-                        self.exprs
-                            .last_mut()
-                            .unwrap()
-                            .elems.push(expr);
-                    }
-                }
-                _ => ()
-            }
-        }
     }
 
     /// Linearly extract `Tok`s 
@@ -192,26 +64,144 @@ impl Lexer {
         let mut lex = String::new();
 
         for (i, ch) in src.chars().enumerate() {
-            if DELIMETERS.contains(&ch) || OPERATORS.contains(&ch) {     
+            if DELIMETERS.contains(&ch) || OPERATORS.contains(&ch) || META.contains(&ch) {     
                 if !lex.is_empty() {
-                    self.toks.push(Sym(lex.clone()).into());
+                    let tok = Sym(lex.clone()).to_tok(self.toks.len());     
+                    self.toks.push(tok);
+
                     lex.clear();
                 }
 
+                let id = self.toks.len();
+
+                if META.contains(&ch) {
+                    self.toks.push(Sym(ch.to_string()).to_tok(id));
+                    continue;
+                }
+
                 match ch {
-                    '(' =>  self.toks.push(Beg.into()),   
-                    ')' =>  self.toks.push(End.into()),
-                    ',' =>  self.toks.push(Esc.into()),     
-                    '\'' => self.toks.push(Quote.into()),     
+                    '(' =>  self.toks.push(Beg.to_tok(id)),   
+                    ')' =>  self.toks.push(End.to_tok(id)),
+                    ',' =>  self.toks.push(Esc.to_tok(id)),     
+                    '\'' => self.toks.push(Qte.to_tok(id)),  
                     _ => ()
                 }
             }
             else {
-                lex.push(ch);
-                if i + 1 == src.len() {
-                    self.toks.push(Sym(lex.clone()).into());
+                if !DELIMETERS.contains(&ch) {
+                    lex.push(ch);
+                }
+
+                if !lex.is_empty() && i + 1 == src.len() {
+                    // token with unique ID
+                    let tok = Sym(lex.clone()).to_tok(self.toks.len());
+                    self.toks.push(tok);                
                 }
             }
+        }
+    }
+
+    fn get_exprs(&mut self) {
+        // is token quoted?
+        let mut qte = false;
+        // is token escaped?
+        let mut esc = false;
+
+        for tok in self.toks.iter() {
+            match tok.tok_type {
+                Beg => {
+                    self.exprs.push(
+                        Expr { 
+                            beg_id: tok.id as isize, 
+                            end_id: -1, // uninit state 
+                            elems: Vec::new(),
+                            esc,
+                            qte,
+                    });
+
+                    qte = false;
+                    esc = false;
+                }
+
+                End => {
+                    self.exprs.last_mut().unwrap().end_id = tok.id as isize;
+
+                    if self.exprs.len() > 1 {
+                        let expr = self.exprs.pop().unwrap();
+
+                        self.exprs
+                            .last_mut()
+                            .unwrap()
+                            .elems
+                            .push(expr);
+                    }
+                }
+                
+                Sym(_) => {
+                    let expr = Expr {
+                        beg_id: tok.id as isize,
+                        end_id: tok.id as isize,
+                        elems: Vec::new(),
+                        esc,
+                        qte
+                    };
+
+                    if self.exprs.is_empty() {
+                        self.exprs.push(expr);
+                    }
+                    else {
+                        self.exprs
+                            .last_mut()
+                            .unwrap()
+                            .elems
+                            .push(expr);
+                    }
+
+                    qte = false;
+                    esc = false;
+                }
+
+                Esc   => esc = true,
+
+                Qte => qte = true
+            }
+        }
+    }
+
+    fn expand_ops(&mut self) {
+        for expr in self.exprs.iter() {
+            expr.map_each(&mut |i| {
+                if i.qte {
+                    i.map_chosen(&mut |j| {
+                        if j.esc {
+                            return false;
+                        }
+
+                        if !j.any(|k| k.esc) {
+                            // expand quote for expression j
+                            let beg = self.toks
+                                .iter()
+                                .position(|rhs| j.beg_id == rhs.id as isize)
+                                .unwrap();
+
+                            let end = self.toks
+                                .iter()
+                                .position(|rhs| j.end_id == rhs.id as isize)
+                                .unwrap();
+
+                            let id = self.toks.len();
+
+                            self.toks.insert(end + 1, End.to_tok(id + 0));
+                            self.toks.insert(beg, Sym("quote".to_string()).to_tok(id + 1));
+                            self.toks.insert(beg, Beg.to_tok(id + 2));
+
+                            return false;
+                        }
+
+                        true
+                    })
+                }
+            })
         }
     }
 
@@ -251,7 +241,7 @@ impl Lexer {
 
                 End => {
                     if let Some(mut parent) = pre_node.pop() {
-                        let obj = env.add_sym(&Env::gen_symbol(), cur_node.as_obj());
+                        let obj = env.add_sym(&Env::unique_sym(), cur_node.as_obj());
                         parent.push(obj);
 
                         cur_node = parent;
@@ -277,16 +267,47 @@ impl Lexer {
 }
 
 impl Env {
-    pub fn gen_symbol() -> String {
-        format!("G#{}", Id::next_id())
-    }   
-
     pub fn add_from_string(&mut self, src: &str) -> Err<Obj> {
         Lexer::new(self, &src.to_string())
     }
     
-    pub fn add_from_file(&mut self, path: String) -> Err<Obj> {
-        let src = std::fs::read_to_string(path.clone()).expect("couldn't read file!");
+    pub fn add_from_file(&mut self, path: &str) -> Err<Obj> {
+        let src = std::fs::read_to_string(path.to_string()).expect("couldn't read file!");
         Lexer::new(self, &src)
+    }
+
+    pub fn repl(&mut self) -> Err<()> {
+        let mut time = Duration::new(0, 0);
+
+        loop {
+            print!(">> ");
+            std::io::stdout().flush()?;
+
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
+
+            match input.trim() {
+                "--help" => {
+                    unimplemented!()
+                }
+                "--quit" => {
+                    println!("quitting...");
+                    break;
+                },
+                "--time" => {
+                    println!("completed in: {:?}...", time);
+                    continue;
+                },
+                _ => ()
+            }
+
+            let start = Instant::now();
+            let res = self.add_from_string(&input.trim().to_string())?;
+            time = start.elapsed();
+
+            println!("{}", res.to_string(self));
+        }
+
+        Ok(())
     }
 }

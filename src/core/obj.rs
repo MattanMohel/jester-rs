@@ -1,12 +1,10 @@
-use std::ops::Deref;
-
 use super::{
     rc_cell::RcCell, 
     type_id::TypeId,
     node::Node, 
     env::Env,
     err::{Err, ErrType::*},
-    fun::{FnNative, Bridge, FnBridge}
+    fun::{FnNative, Bridge, FnBridge, FnMacro}
 };
 
 /// `Jester-rs` representation of data
@@ -32,6 +30,8 @@ pub enum Obj {
     Native(FnNative),
     /// `bridge-fn`
     Bridge(FnBridge),
+    /// `macro-fn`
+    Macro(FnMacro),
     /// `nil`
     Nil(()),
 }
@@ -99,6 +99,7 @@ impl Obj {
             Str(x)     => x.as_string(env),
             Native(x)  => x.as_string(env),
             Bridge(x)  => x.as_string(env),
+            Macro(x)   => x.as_string(env),
             Nil(x)     => x.as_string(env)
         }
     }
@@ -116,7 +117,8 @@ impl Obj {
             Str(_)    => String::type_str(),
             Native(_) => FnNative::type_str(),
             Bridge(_) => FnBridge::type_str(),
-            Nil(_)    => <()>::type_str(),
+            Macro(_)  => FnMacro::type_str(),
+            Nil(_)    => <()>::type_str()
         }
         .to_string()
     }
@@ -274,7 +276,7 @@ impl Obj {
             Ok(I128(int))
         }
         else {
-            Err(OverFlow)
+            Err(Overflow)
         }
     }
 }

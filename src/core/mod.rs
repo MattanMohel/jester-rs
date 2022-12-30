@@ -8,5 +8,5 @@ pub mod parse;
 pub mod obj;
 pub mod op;
 pub mod rc_cell;
-pub mod repl;
 pub mod type_id;
+pub mod lex;

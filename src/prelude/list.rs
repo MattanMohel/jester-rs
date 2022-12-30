@@ -17,17 +17,15 @@ impl Env {
         });
 
         self.add_bridge("nth", |env, args| {
-            let idx = args
-                .get(0)?
-                .as_ref()
+            let idx = env
+                .eval(args.get(0)?.as_ref())?
                 .is_int()?;
 
-            let nth = args
-                .get(1)?
-                .as_ref();
-            
-            let res = env.eval(nth.is_node()?.get(idx as usize)?.as_ref())?;
+            let nth = env
+                .eval(args.get(1)?.as_ref())?;               
 
+            let res = nth.is_node()?.get(idx as usize)?.clone_inner();
+            
             Ok(res)
         });
 
@@ -43,10 +41,7 @@ impl Env {
 
                     let list = obj.is_node()?;
 
-                    list
-                        .get(index)?
-                        .as_mut()
-                        .assign(&elem);
+                    *list.get(index)?.as_mut() = elem;
 
                     Ok(list.get(index)?.clone_inner())
                 })

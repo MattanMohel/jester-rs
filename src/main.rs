@@ -6,17 +6,25 @@ use crate::core::{
     err::Err,
 };
 
-fn main() -> Err<()>{
+// Add Env Builder
+
+// give env a working director (script folder)
+
+// Env::default()
+//     .math_lib()
+//     .io_lib()
+//     .add_from_string(
+//     "
+//        (defun test () nil) 
+//     ")
+//     .build();
+
+fn main() -> Err {
     let mut env = Env::new()?;
 
-    env.add_from_string(
-    "
-    (println 10 15 20)
-    (print 99)
-    (println 11)
-    (+ 1 2 3)
-    "
-    )?;
+    env.add_from_file("scripts/test.lsp")?;
 
-    env.repl()
+    env.repl()?;
+
+    Ok(())
 }

@@ -4,33 +4,6 @@ use std::{
     io
 };
 
-pub trait AsResult 
-where Self: Sized 
-{
-    fn ok_then<O, E>(&self, ok: O, err: E) -> Result<O, E>;
-    fn ok_or<E>(&self, err: E) -> Result<(), E>;
-}
-
-impl AsResult for bool {
-    fn ok_then<O, E>(&self, ok: O, err: E) -> Result<O, E> {
-        if *self {
-            Ok(ok)
-        }
-        else {
-            Err(err)
-        }
-    }
-
-    fn ok_or<E>(&self, err: E) -> Result<(), E> {
-        if *self {
-            Ok(())
-        }
-        else {
-            Err(err)
-        }
-    }
-}
-
 pub type Err<T = ()> = Result<T, ErrType>;
 
 #[derive(Debug)]
@@ -45,7 +18,7 @@ pub enum ErrType {
     MisForm,
     ErrCast,
     ErrList,
-    OverFlow,
+    Overflow,
     Unbalanced,  
     OutOfBound,
     RuntimeAssert

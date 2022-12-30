@@ -3,7 +3,7 @@ use super::{
     rc_cell::RcCell,
     obj::Obj::{self, *}, 
     err::{Err, ErrType::*}, 
-    fun::{FnNative, FnBridge, Callable}, 
+    fun::{FnNative, FnBridge, Callable, FnMacro}, 
     env::Env
 };
 
@@ -142,6 +142,21 @@ impl TypeId for FnNative {
 
     fn type_str() -> &'static str {
         "native()"
+    }
+
+    fn as_string(&self, env: &Env) -> String {
+        let params = self.params().as_string(env);
+        format!("{}{}", self.name(), params)
+    }
+}
+
+impl TypeId for FnMacro {
+    fn as_obj(self) -> Obj {
+        Macro(self)
+    }
+
+    fn type_str() -> &'static str {
+        "macro()"
     }
 
     fn as_string(&self, env: &Env) -> String {
@@ -306,10 +321,11 @@ impl Obj {
     /// ```
     /// i32, i64, i128
     /// ```
-    pub fn is_int(&self) -> Err<u64> {
+    pub fn is_int(&self) -> Err<i128> {
         match self {
-            I32(x) => Ok(*x as u64),
-            I64(x) => Ok(*x as u64),
+            I32(x)  => Ok(*x as i128),
+            I64(x)  => Ok(*x as i128),
+            I128(x) => Ok(*x as i128),
             _ => Err(MisType)
         }
     } 

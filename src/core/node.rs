@@ -1,12 +1,11 @@
 use std::ops::DerefMut;
 use std::ops::Deref;
-use std::cell::RefMut;
 use std::cell::Ref;
+use std::ops::Index;
 
 use super::env::Env;
 use super::obj::Obj;
 use super::err::Err;
-use super::err::AsResult;
 use super::err::ErrType::*;
 use super::rc_cell::RcCell;
     
@@ -73,10 +72,11 @@ impl Node {
     }
 
     pub fn remove(&mut self, index: usize) -> Err<Obj> {
-        (index < self.buf.len()).ok_then(
-            self.buf.remove(index).as_ref().clone(), 
-            OutOfBound
-        )
+        if index >= self.buf.len() {
+            return Err(OutOfBound)
+        }
+        
+        Ok(self.buf.remove(index).as_ref().clone())
     }
 
     pub fn get(&self, i: usize) -> Err<&RcCell<Obj>> {
@@ -109,6 +109,14 @@ impl<'a> Iterator for NodeIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.i += 1;
         self.get(self.i - 1).ok()
+    }
+}
+
+impl<'a> Index<usize> for NodeIter<'a> {
+    type Output = RcCell<Obj>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).unwrap()
     }
 }
 
@@ -151,11 +159,6 @@ impl<'a> NodeIter<'a> {
         self
             .map(|obj| map(obj))
             .collect::<_>()
-    }
-    
-    /// Return a new `Node` with elements evaluated
-    pub fn evaled(&self, env: &Env) -> Err<Node> {       
-        self.mapped(|obj| env.eval(obj.as_ref()))
     }
 
     /// Apply `map` to each element returning 
@@ -225,16 +228,16 @@ impl<'a> NodeIter<'a> {
         I1: Iterator<Item = &'b RcCell<Obj>> + Clone, 
         I2: Iterator<Item = &'c RcCell<Obj>> + Clone,
     {   
-        let prev = params
+        let prev: Node = params
             .clone()
             .map(|obj| env.eval(obj.as_ref()))
-            .collect::<Err<Node>>()?;   
+            .collect::<Err<_>>()?;   
         
         for (param, arg) in params.clone().zip(args.clone()) { 
             param
                 .as_mut()
                 .deref_mut()
-                .assign(&env.eval(arg.as_ref().deref())?);
+                .assign(&env.eval(arg.as_ref())?);
         }
 
         let res = self.progn(|obj| env.eval(obj.as_ref()));
@@ -243,7 +246,36 @@ impl<'a> NodeIter<'a> {
             param
                 .as_mut()
                 .deref_mut()
-                .assign(&env.eval(val.as_ref().deref())?);
+                .assign(&env.eval(val.as_ref())?);
+        }
+
+        res
+    }
+
+    pub fn progn_macro<'b, 'c, I1, I2>(&self, env: &Env, params: I1, args: I2) -> Err<Obj>     
+    where 
+        I1: Iterator<Item = &'b RcCell<Obj>> + Clone, 
+        I2: Iterator<Item = &'c RcCell<Obj>> + Clone,
+    {   
+        let prev: Node = params
+            .clone()
+            .map(|obj| env.eval(obj.as_ref()))
+            .collect::<Err<_>>()?;   
+        
+        for (param, arg) in params.clone().zip(args.clone()) { 
+            param
+                .as_mut()
+                .deref_mut()
+                .assign(&arg.as_ref());
+        }
+
+        let res = self.progn(|obj| env.eval(obj.as_ref()));
+
+        for (param, val) in params.zip(prev.iter()) {   
+            param
+                .as_mut()
+                .deref_mut()
+                .assign(&env.eval(val.as_ref())?);
         }
 
         res

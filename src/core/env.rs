@@ -5,10 +5,12 @@ use super::{
     err::Err,
     fun::Bridge, 
     rc_cell::RcCell,
-    type_id::Primitive
+    type_id::Primitive, id::Id
 };
 
 // TODO: work on namespaces - module tree qualifiers
+
+
 
 /// `Jester-rs` Environment struct
 #[derive(Clone)]
@@ -17,7 +19,6 @@ pub struct Env {
 }
 
 impl Default for Env {
-    /// Returns `Env` with no initial symbols
     fn default() -> Self {
         Self { 
             symbols: HashMap::new() 
@@ -35,6 +36,10 @@ impl Env {
             
         Ok(env)
     }
+
+    pub fn unique_sym() -> String {
+        format!("G#{}", Id::next_id())
+    }   
 
     pub fn add_sym(&mut self, sym: &str, val: Obj) -> RcCell<Obj> {
         let pop = self.symbols.insert(sym.to_string(), RcCell::from(val));
@@ -75,5 +80,18 @@ impl Env {
     pub fn add_bridge(&mut self, sym: &str, bridge: Bridge) -> RcCell<Obj> {
         let obj = Obj::new_bridge(sym.to_string(), bridge);
         self.add_sym(sym, obj)
+    }
+
+    pub unsafe fn gen_sym(&self, obj: Obj) -> RcCell<Obj> {   
+        // coerce self mutability   
+        let ptr = (self as *const Self) as *mut Self;
+            
+        match ptr.as_mut() {
+            Some(env) => {
+                let sym = Env::unique_sym();
+                env.add_sym(sym.as_str(), obj)
+            }
+            None => panic!("environment not initialized!")
+        } 
     }
 }

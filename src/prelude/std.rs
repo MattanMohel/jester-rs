@@ -1,8 +1,8 @@
 use crate::core::{
     env::Env,
     type_id::TypeId, 
-    fun::FnNative,
-    err::ErrType::*
+    fun::{FnNative, FnMacro},
+    err::ErrType::*, obj::Obj
 };
 
 impl Env {
@@ -23,6 +23,35 @@ impl Env {
                 .assign(&val);
 
             Ok(val)
+        });
+
+        self.add_bridge("gen-sym", |env, args| {
+            let obj;
+            
+            if let Ok(val) = args.get(0) {
+                obj = env.eval(val.as_ref())?;
+            }
+            else {
+                obj = ().as_obj();
+            }
+
+            unsafe {
+                let sym = env.gen_sym(obj);
+                Ok(sym.as_obj())
+            }
+        });
+
+        self.add_bridge("loop", |env, args| {
+            let mut res = ().as_obj();
+            let cond = args.get(0)?;
+
+            while *env.eval(cond.as_ref())?.is_bool()? {
+                res = args
+                    .shift()
+                    .progn(|obj| env.eval(obj.as_ref()))?;
+            }
+            
+            Ok(res)
         });
 
         self.add_bridge("defun", |env, node| {
@@ -49,8 +78,8 @@ impl Env {
             Ok(node.get(0)?.as_ref().clone())
         });
 
-        self.add_bridge("fn", |env, node| {
-            let name = Env::gen_symbol();
+        self.add_bridge("lambda", |env, node| {
+            let name = Env::unique_sym();
 
             let params = node
                 .get(0)?
@@ -86,6 +115,47 @@ impl Env {
             args
                 .shift()
                 .progn_scoped(env, params, inputs)
+        });
+
+        self.add_bridge("do", |env, args| {
+            args
+                .progn(|obj| env.eval(obj.as_ref()))
+        });
+
+        self.add_bridge("defmacro", |env, node| {
+            let sym = node.get(0)?;
+
+            let name = env
+                .get_sym_id(sym.as_ref().is_symbol()?)
+                .unwrap();
+
+            let params = node
+                .get(1)?
+                .as_ref()
+                .is_node()?
+                .clone();
+
+            let body = node
+                .skip(2)
+                .cloned()
+                .collect();
+
+            let macro_native = FnMacro::new(name, params, body);
+
+            sym.as_mut().assign_to(macro_native);
+            Ok(node.get(0)?.as_ref().clone())
+        });
+
+        self.add_bridge("macro-expand", |env, node| {
+            let node = node.get(0)?.as_ref();
+            let node = node.is_node()?;
+
+            let fst = node.get(0)?;
+
+            match env.eval(fst.as_ref())? {
+                Obj::Macro(f)  => f.expand(env, node.iter_from(1)),   
+                _ => Err(MisType)        
+            }     
         });
 
         self.add_bridge("type-of", |env, args| {

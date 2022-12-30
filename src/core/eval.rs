@@ -24,11 +24,12 @@ impl Env {
                 match self.eval(fst.as_ref())? {
                     Native(f) => f.call(self, node.iter_from(1)),
                     Bridge(f) => f.call(self, node.iter_from(1)),
+                    Macro(f)  => f.call(self, node.iter_from(1)),
                     
                     _ => {
                         Ok(node
                             .iter()
-                            .evaled(self)?
+                            .mapped(|obj| self.eval(obj.as_ref()))?
                             .as_obj()
                         )
                     }           
