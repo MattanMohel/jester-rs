@@ -14,14 +14,11 @@ use super::{
 };
 
 impl Env {
-    pub fn eval<T>(&self, obj: T) -> Err<Obj> 
-    where   
-        T: Deref<Target=Obj>
-    {    
-        match obj.deref() {
+    pub fn eval(&self, obj: &Obj) -> Err<Obj> {    
+        match obj {
             Lst(node) if !node.is_empty() => {
                 let fst = node.get(0).unwrap();    
-                match self.eval(fst.as_ref())? {
+                match self.eval(fst)? {
                     Native(f) => f.call(self, node.iter_from(1)),
                     Bridge(f) => f.call(self, node.iter_from(1)),
                     Macro(f)  => f.call(self, node.iter_from(1)),

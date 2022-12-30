@@ -12,7 +12,7 @@ impl Env {
         self.add_primitive("PI", 3.14159);        
 
         self.add_bridge("+", |env, args| {
-            let mut fst = env.eval(args.get_ref(0)?)?;
+            let mut fst = env.eval(args.get(0)?)?;
             for rst in args.skip(1) {
                 fst.add(env.eval(rst.as_ref())?)?;
             }
@@ -21,7 +21,7 @@ impl Env {
         });
 
         self.add_bridge("-", |env, args| {
-            let mut fst = env.eval(args.get_ref(0)?)?;
+            let mut fst = env.eval(args.get(0)?)?;
 
             if args.len() == 1 {
                 fst.neg()?;
@@ -35,7 +35,7 @@ impl Env {
         });
 
         self.add_bridge("*", |env, args| {
-            let mut fst = env.eval(args.get_ref(0)?)?;
+            let mut fst = env.eval(args.get(0)?)?;
             for rst in args.skip(1) {
                 fst.mul(env.eval(rst.as_ref())?)?;
             }
@@ -44,7 +44,7 @@ impl Env {
         });
 
         self.add_bridge("/", |env, args| {
-            let mut fst = env.eval(args.get_ref(0)?)?;
+            let mut fst = env.eval(args.get(0)?)?;
             for rst in args.skip(1) {
                 fst.div(env.eval(rst.as_ref())?)?;
             }
@@ -53,7 +53,7 @@ impl Env {
         });
 
         self.add_bridge("%", |env, args| {
-            let mut fst = env.eval(args.get_ref(0)?)?;
+            let mut fst = env.eval(args.get(0)?)?;
             for rst in args.skip(1) {
                 fst.modulos(env.eval(rst.as_ref())?)?;
             }
@@ -63,40 +63,40 @@ impl Env {
 
         self.add_bridge("=", |env, node| {
             let res = env
-                .eval(node.get(0)?.as_ref())?
-                .eq(&env.eval(node.get(1)?.as_ref())?)?;
+                .eval(node.get(0)?)?
+                .eq(&env.eval(node.get(1)?)?)?;
 
             Ok(res.as_obj())
         });
 
         self.add_bridge("<=", |env, node| {
             let res = env
-                .eval(node.get(0)?.as_ref())?
-                .le_eq(&env.eval(node.get(1)?.as_ref())?)?;
+                .eval(node.get(0)?)?
+                .le_eq(&env.eval(node.get(1)?)?)?;
                 
             Ok(res.as_obj())
         });
 
         self.add_bridge(">=", |env, node| {
             let res = !env
-                .eval(node.get(0)?.as_ref())?
-                .le(&env.eval(node.get(1)?.as_ref())?)?;
+                .eval(node.get(0)?)?
+                .le(&env.eval(node.get(1)?)?)?;
                 
             Ok(res.as_obj())
         });
 
         self.add_bridge("<", |env, node| {
             let res = env
-                .eval(node.get(0)?.as_ref())?
-                .le(&env.eval(node.get(1)?.as_ref())?)?;
+                .eval(node.get(0)?)?
+                .le(&env.eval(node.get(1)?)?)?;
                 
             Ok(res.as_obj())
         });
 
         self.add_bridge(">", |env, node| {
             let res = !env
-                .eval(node.get(0)?.as_ref())?
-                .le_eq(&env.eval(node.get(1)?.as_ref())?)?;
+                .eval(node.get(0)?)?
+                .le_eq(&env.eval(node.get(1)?)?)?;
                 
             Ok(res.as_obj())
         });

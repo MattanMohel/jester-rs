@@ -79,11 +79,26 @@ impl Node {
         Ok(self.buf.remove(index).as_ref().clone())
     }
 
-    pub fn get(&self, i: usize) -> Err<&RcCell<Obj>> {
+    pub fn get_cell(&self, i: usize) -> Err<&RcCell<Obj>> {
         self.buf
             .get(i)
             .ok_or(OutOfBound)
     }
+
+    pub fn get_mut(&self, i: usize) -> Err<&mut Obj> {
+        self.buf
+            .get(i)
+            .map(|obj| obj.as_mut())
+            .ok_or(OutOfBound)
+    }
+
+    pub fn get(&self, i: usize) -> Err<&Obj> {
+        self.buf
+            .get(i)
+            .map(|obj| obj.as_ref())
+            .ok_or(OutOfBound)
+    }
+
 
     /// Creates an iterator
     pub fn iter(&self) -> NodeIter<'_> {
@@ -108,7 +123,7 @@ impl<'a> Iterator for NodeIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.i += 1;
-        self.get(self.i - 1).ok()
+        self.get_cell(self.i - 1).ok()
     }
 }
 
@@ -116,7 +131,7 @@ impl<'a> Index<usize> for NodeIter<'a> {
     type Output = RcCell<Obj>;
 
     fn index(&self, index: usize) -> &Self::Output {
-        self.get(index).unwrap()
+        self.get_cell(index).unwrap()
     }
 }
 
@@ -137,14 +152,16 @@ impl<'a> NodeIter<'a> {
         self.len() == 0
     }
 
-    pub fn get(&self, index: usize) -> Err<&'a RcCell<Obj>> {
-        self.node.get(self.beg + index)
+    pub fn get_cell(&self, i: usize) -> Err<&'a RcCell<Obj>> {
+        self.node.get_cell(self.beg + i)
     }
 
-    pub fn get_ref(&self, index: usize) -> Err<Ref<Obj>> {
-        self.node
-            .get(self.beg + index)
-            .map(|item| item.as_ref())
+    pub fn get_mut(&self, i: usize) -> Err<&mut Obj> {
+        self.node.get_mut(self.beg + 1)
+    }
+
+    pub fn get(&self, i: usize) -> Err<&Obj> {
+        self.node.get(self.beg + i)
     }
 
     pub fn shift(&self) -> Self {
@@ -180,10 +197,10 @@ impl<'a> NodeIter<'a> {
             .unwrap_or(0);  
 
         for i in 0..bounds {
-            map(self.get(i)?)?;
+            map(self.get_cell(i)?)?;
         }
 
-        map(self.get(bounds)?)
+        map(self.get_cell(bounds)?)
     }
 
     /// Equivalent to `Node::progn` but `map` except:
@@ -200,10 +217,10 @@ impl<'a> NodeIter<'a> {
             .unwrap_or(0);  
 
         for i in 0..bounds {
-            map(self.get(i)?, false)?;
+            map(self.get_cell(i)?, false)?;
         }
 
-        map(self.get(bounds)?, true)
+        map(self.get_cell(bounds)?, true)
     }
 
     /// Evaluates each element, returning the

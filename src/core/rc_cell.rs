@@ -37,12 +37,21 @@ impl<T: PartialEq> PartialEq for RcCell<T> {
 }
 
 impl<T> RcCell<T> {
-    pub fn as_ref(&self) -> Ref<T> {
-        self.raw.borrow()
-    }
+    pub fn as_ref(&self) -> &T {
+        unsafe {
+            self.raw
+                .as_ptr()
+                .as_ref()
+                .unwrap()
+        }    }
 
-    pub fn as_mut(&self) -> RefMut<T> {
-        self.raw.borrow_mut()
+    pub fn as_mut(&self) -> &mut T {
+        unsafe {
+            self.raw
+                .as_ptr()
+                .as_mut()
+                .unwrap()
+        }
     }
 
     pub fn as_raw(&self) -> &Rc<RefCell<T>> {
@@ -65,7 +74,7 @@ impl RcCell<Obj> {
 
     pub fn map_inner<F>(&self, mut map: F) -> Err<Obj>
     where
-        F: FnMut(RefMut<Obj>) -> Err<Obj>
+        F: FnMut(&mut Obj) -> Err<Obj>
     {
         let mut sym = self.as_mut();
         let sym = sym.is_symbol_mut()?;
