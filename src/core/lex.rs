@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 
 /// `Jester-rs` delimeters
-pub(crate) const DELIMETERS: [char; 4] = [
+pub(crate) const CONTROLS: [char; 4] = [
     ' ',  // space
     '\n', // new line
     '\r', // curso new line
@@ -18,12 +18,22 @@ pub(crate) const OPERATORS: [char; 5] = [
     ',',  // exclude
 ];
 
-pub(crate) const META: [char; 4] = [
+pub(crate) const METAS: [char; 4] = [
     '[',
     ']',
     '{',
     '}',
 ];
+
+/// Returns if `char` is a `Jetser-rs` delimeter
+/// 
+/// ## Return
+/// ```
+/// (is_control, is_operator, is_meta)
+/// ```
+pub fn is_delimeter(ch: &char) -> (bool, bool, bool) {
+    (CONTROLS.contains(&ch), OPERATORS.contains(&ch), METAS.contains(&ch))
+}
 
 /// Represents a lexical token
 /// 

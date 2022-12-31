@@ -20,4 +20,24 @@
     (loop (< i max)
       (append (map i) c)
       (++ i))
-    c))      
+    c))
+
+(defmacro for (var in lst body)
+	(let (i (gen-sym))
+		'(let (,var nil)
+			(set ,i 0)
+			(loop (< ,i (len ,lst))
+				(set ,var (nth ,i ,lst))
+				(do ,body)
+				(++ ,i)))))
+	
+(set hash
+	(("0" 11)
+	 ("1" 22)
+	 ("2" 33)))
+	
+(defun get-val (key hm)
+	(for pair in hm (
+		(if (= key (nth 0 pair))
+			(println pair)))))
+

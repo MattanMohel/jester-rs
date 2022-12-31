@@ -43,7 +43,8 @@ impl<T> RcCell<T> {
                 .as_ptr()
                 .as_ref()
                 .unwrap()
-        }    }
+        }    
+    }
 
     pub fn as_mut(&self) -> &mut T {
         unsafe {

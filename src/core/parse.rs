@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::time::{Duration, Instant};
 
-use super::lex::META;
+use super::lex::{METAS, TokType, is_delimeter};
 use super::{
     id::Id, 
     node::Node, 
@@ -14,7 +14,7 @@ use super::{
         Tok,
         TokType::*,
         Expr,
-        DELIMETERS,
+        CONTROLS,
         OPERATORS
     }
 };
@@ -42,6 +42,15 @@ impl Lexer {
             .progn(|obj| env.eval(obj.as_ref()))
     }
 
+    fn add_tok(&mut self, tok_type: TokType) {
+        let tok = Tok {
+            tok_type,
+            id: self.toks.len()
+        };
+
+        self.toks.push(tok);
+    }
+
     /// Linearly extract `Tok`s 
     /// 
     /// ## Note
@@ -62,40 +71,47 @@ impl Lexer {
     fn get_toks(&mut self, src: &String) {
         // lexical buffer
         let mut lex = String::new();
+        // whether parsing a string
+        let mut str = false;
 
-        for (i, ch) in src.chars().enumerate() {
-            if DELIMETERS.contains(&ch) || OPERATORS.contains(&ch) || META.contains(&ch) {     
+        for (i, ch) in src.chars().enumerate() {                 
+            // string extraction - special case
+            if ch == '"' {
+                if str { lex.push('"') } 
+                str = !str;
+            }
+            if str {
+                lex.push(ch);
+                continue;
+            }
+
+            let meta = METAS.contains(&ch);
+            let op = OPERATORS.contains(&ch);
+            let cntrl = CONTROLS.contains(&ch);
+
+            if cntrl || op || meta {     
                 if !lex.is_empty() {
-                    let tok = Sym(lex.clone()).to_tok(self.toks.len());     
-                    self.toks.push(tok);
-
+                    self.add_tok(Sym(lex.clone()));
                     lex.clear();
                 }
 
-                let id = self.toks.len();
-
-                if META.contains(&ch) {
-                    self.toks.push(Sym(ch.to_string()).to_tok(id));
+                if meta {
+                    self.add_tok(Sym(ch.to_string()));
                     continue;
                 }
 
                 match ch {
-                    '(' =>  self.toks.push(Beg.to_tok(id)),   
-                    ')' =>  self.toks.push(End.to_tok(id)),
-                    ',' =>  self.toks.push(Esc.to_tok(id)),     
-                    '\'' => self.toks.push(Qte.to_tok(id)),  
+                    '('  => self.add_tok(Beg),   
+                    ')'  => self.add_tok(End),
+                    ','  => self.add_tok(Esc),     
+                    '\'' => self.add_tok(Qte), 
                     _ => ()
                 }
             }
             else {
-                if !DELIMETERS.contains(&ch) {
-                    lex.push(ch);
-                }
-
+                lex.push(ch);
                 if !lex.is_empty() && i + 1 == src.len() {
-                    // token with unique ID
-                    let tok = Sym(lex.clone()).to_tok(self.toks.len());
-                    self.toks.push(tok);                
+                    self.add_tok(Sym(lex.clone()));                
                 }
             }
         }

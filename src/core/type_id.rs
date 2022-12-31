@@ -110,7 +110,7 @@ impl TypeId for String {
     }
 
     fn as_string(&self, _: &Env) -> String {
-        self.clone()
+        format!("\"{}\"", self)
     }
 }
 

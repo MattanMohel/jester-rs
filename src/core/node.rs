@@ -99,6 +99,10 @@ impl Node {
             .ok_or(OutOfBound)
     }
 
+    /// Returns evaluated clone
+    pub fn evaled(&self, env: &Env) -> Err<Node> {
+        self.iter().mapped(|obj| env.eval(obj.as_ref()))
+    }
 
     /// Creates an iterator
     pub fn iter(&self) -> NodeIter<'_> {
