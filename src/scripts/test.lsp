@@ -7,9 +7,9 @@
 (defmacro map (lst fun)
 	(let (i (gen-sym 0))
 		'(loop (< ,i (len ,lst))
-		(replace ,i (,fun (nth ,i ,lst)) ,lst)
-		(++ ,i)
-		,lst)))
+			(replace ,i (,fun (nth ,i ,lst)) ,lst)
+			(++ ,i)
+			,lst)))
 
 (defun apply (fun lst)
 	(prepend '+ lst)
@@ -19,9 +19,9 @@
 	(let (i min 
 	      col ())	  
 		(loop (< i max)
-		(append (map i) col)
-		(++ i))
-		col))
+			(append (map i) col)
+			(++ i))
+			col))
 
 (defmacro for (var in lst body)
 	(let (i (gen-sym))
