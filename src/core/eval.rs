@@ -1,10 +1,3 @@
-
-use std::{
-    ops::Deref, 
-    io::{self, Write},
-    time::{Instant, Duration}
-};
-
 use super::{
     obj::Obj::{*, self},
     err::Err,
@@ -35,15 +28,5 @@ impl Env {
              
             _ => Ok(obj.clone())
         }
-    }
-
-    pub fn run(&self) -> Err<Obj> {
-        // self.prelude().as_ref().run(self)
-        todo!()
-    }
-
-    pub fn run_module(&self, name: &str) -> Err<Obj> {
-        // self.module(name)?.as_ref().run(self)
-        todo!()
     }
 }

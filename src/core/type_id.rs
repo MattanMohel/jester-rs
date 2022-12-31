@@ -110,7 +110,7 @@ impl TypeId for String {
     }
 
     fn as_string(&self, _: &Env) -> String {
-        format!("\"{}\"", self)
+        self.clone()
     }
 }
 
@@ -175,7 +175,7 @@ impl TypeId for FnBridge {
     }
 
     fn as_string(&self, _: &Env) -> String {
-        format!("{}()", self.name())
+        format!("{}()", self.name().to_uppercase())
     }
 }
 
@@ -191,7 +191,7 @@ impl TypeId for Node {
     fn as_string(&self, env: &Env) -> String {
         self
             .iter()
-            .map(|obj| obj.as_ref().to_string(env))
+            .map(|obj| obj.as_ref().as_string(env))
             .reduce(|acc, next| format!("{} {}", acc, next))
             .map_or(
                 "()".to_string(), 

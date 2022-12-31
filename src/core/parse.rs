@@ -1,9 +1,7 @@
 use std::io::Write;
 use std::time::{Duration, Instant};
 
-use super::lex::{METAS, TokType, is_delimeter};
 use super::{
-    id::Id, 
     node::Node, 
     obj::Obj, 
     rc_cell::RcCell, 
@@ -12,10 +10,11 @@ use super::{
     err::Err,
     lex::{
         Tok,
-        TokType::*,
         Expr,
         CONTROLS,
-        OPERATORS
+        OPERATORS,
+        METAS,
+        TokType::{self, *}
     }
 };
 
@@ -71,17 +70,27 @@ impl Lexer {
     fn get_toks(&mut self, src: &String) {
         // lexical buffer
         let mut lex = String::new();
-        // whether parsing a string
-        let mut str = false;
+        // whether parsing comment
+        let mut com = false;
+        // whether parsing string
+        let mut str  = false;
 
         for (i, ch) in src.chars().enumerate() {                 
             // string extraction - special case
-            if ch == '"' {
-                if str { lex.push('"') } 
-                str = !str;
+            
+            match ch {
+                '\n' if !str => com = false,
+                ';' if !str => com = !com,
+                '"' if !com => {     
+                    if str {
+                        lex.push(ch);
+                    }
+                    str = !str;
+                }   
+                _ => ()
             }
-            if str {
-                lex.push(ch);
+
+            if com {
                 continue;
             }
 
@@ -89,7 +98,7 @@ impl Lexer {
             let op = OPERATORS.contains(&ch);
             let cntrl = CONTROLS.contains(&ch);
 
-            if cntrl || op || meta {     
+            if !str && (cntrl || op || meta) {     
                 if !lex.is_empty() {
                     self.add_tok(Sym(lex.clone()));
                     lex.clear();
@@ -110,6 +119,7 @@ impl Lexer {
             }
             else {
                 lex.push(ch);
+
                 if !lex.is_empty() && i + 1 == src.len() {
                     self.add_tok(Sym(lex.clone()));                
                 }
@@ -321,7 +331,7 @@ impl Env {
             let res = self.add_from_string(&input.trim().to_string())?;
             time = start.elapsed();
 
-            println!("{}", res.to_string(self));
+            println!("{}", res.display(self));
         }
 
         Ok(())

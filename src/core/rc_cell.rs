@@ -1,6 +1,12 @@
-use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
+use std::{
+    cell::RefCell, 
+    rc::Rc
+};
 
-use super::{obj::Obj, err::Err};
+use super::{
+    obj::Obj, 
+    err::Err
+};
 
 pub struct RcCell<T> {
     raw: Rc<RefCell<T>>
@@ -72,14 +78,13 @@ impl<T> RcCell<T> {
 }
 
 impl RcCell<Obj> {
-
+    /// Mutates the inner `Sym` value 
     pub fn map_inner<F>(&self, mut map: F) -> Err<Obj>
     where
         F: FnMut(&mut Obj) -> Err<Obj>
     {
-        let mut sym = self.as_mut();
+        let sym = self.as_mut();
         let sym = sym.is_symbol_mut()?;
-
         map(sym.as_mut())
     }
 }

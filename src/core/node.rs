@@ -1,6 +1,4 @@
 use std::ops::DerefMut;
-use std::ops::Deref;
-use std::cell::Ref;
 use std::ops::Index;
 
 use super::env::Env;

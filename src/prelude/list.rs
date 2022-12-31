@@ -1,7 +1,7 @@
 use crate::core::{
     env::Env,
-    err::Err, 
-    obj::Obj, rc_cell::RcCell, type_id::TypeId,
+    rc_cell::RcCell, 
+    type_id::TypeId
 };
 
 impl Env {

@@ -85,9 +85,18 @@ impl Obj {
         Obj::Bridge(FnBridge::new(sym, bridge))
     }
 
+    /// Returns the value of object as 
+    /// String for the intent of `io` display
+    pub fn display(&self, env: &Env) -> String {
+        match self {
+            Str(x) => format!("\"{}\"", x.as_string(env)),
+            _ => self.as_string(env)
+        }
+    }
+
 
     /// Returns the value of object as String
-    pub fn to_string(&self, env: &Env) -> String {
+    pub fn as_string(&self, env: &Env) -> String {
         match self {
             Sym(x)     => x.as_string(env),
             Lst(x)     => x.as_string(env),
