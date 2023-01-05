@@ -13,6 +13,7 @@ pub enum ErrType {
     DupSym,
     NonMod,
     DupMod, 
+    Params,
     MisType,
     MisComp,
     MisForm,

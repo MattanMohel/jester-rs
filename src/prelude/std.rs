@@ -2,7 +2,7 @@ use crate::core::{
     env::Env,
     type_id::TypeId, 
     fun::{FnNative, FnMacro},
-    err::ErrType::*, obj::Obj
+    err::ErrType::*, obj::Obj, node::Node, rc_cell::RcCell
 };
 
 impl Env {
@@ -25,18 +25,9 @@ impl Env {
             Ok(val)
         });
 
-        self.add_bridge("gen-sym", |env, args| {
-            let obj;
-            
-            if let Ok(val) = args.get(0) {
-                obj = env.eval(val)?;
-            }
-            else {
-                obj = ().as_obj();
-            }
-
+        self.add_bridge("gen-sym", |env, _| {            
             unsafe {
-                let sym = env.gen_sym(obj);
+                let sym = env.gen_sym(().as_obj());
                 Ok(sym.as_obj())
             }
         });
@@ -71,7 +62,30 @@ impl Env {
                 .cloned()
                 .collect();
 
-            let native = FnNative::new(name, params, body);
+            let native = FnNative::new(name, params, body, false);
+
+            sym.as_mut().assign_to(native);
+            Ok(node.get(0)?.clone())
+        });
+
+        self.add_bridge("defun*", |env, node| {
+            let sym = node.get_cell(0)?;
+
+            let name = env
+                .get_sym_id(sym.as_ref().is_symbol()?)
+                .unwrap();
+
+            let params = node
+                .get(1)?
+                .is_node()?
+                .clone();
+
+            let body = node
+                .skip(2)
+                .cloned()
+                .collect();
+
+            let native = FnNative::new(name, params, body, true);
 
             sym.as_mut().assign_to(native);
             Ok(node.get(0)?.clone())
@@ -90,7 +104,7 @@ impl Env {
                 .cloned()
                 .collect();
 
-            let native = FnNative::new(name, params, body);
+            let native = FnNative::new(name, params, body, false);
             Ok(native.as_obj())
         });
 
@@ -136,7 +150,30 @@ impl Env {
                 .cloned()
                 .collect();
 
-            let macro_native = FnMacro::new(name, params, body);
+            let macro_native = FnMacro::new(name, params, body, false);
+
+            sym.as_mut().assign_to(macro_native);
+            Ok(node.get(0)?.clone())
+        });
+
+        self.add_bridge("defmacro*", |env, node| {
+            let sym = node.get_cell(0)?;
+
+            let name = env
+                .get_sym_id(sym.as_ref().is_symbol()?)
+                .unwrap();
+
+            let params = node
+                .get(1)?
+                .is_node()?
+                .clone();
+
+            let body = node
+                .skip(2)
+                .cloned()
+                .collect();
+
+            let macro_native = FnMacro::new(name, params, body, true);
 
             sym.as_mut().assign_to(macro_native);
             Ok(node.get(0)?.clone())
@@ -234,6 +271,25 @@ impl Env {
             else {
                 Ok(().as_obj())
             }
+        });
+
+        self.add_bridge("apply", |env, args| {
+            let mut node = Node::from(vec![args.get_cell(0)?.clone()]);
+
+            for elem in args.skip(1) {
+                let obj = env.eval(elem.as_ref())?;
+
+                match &obj {
+                    Obj::Lst(lst) => {
+                        for elem in lst.iter() {
+                            node.push(elem.clone());
+                        }
+                    }
+                    _ => node.push(RcCell::from(obj))
+                }
+            }
+            
+            env.eval(&node.as_obj())
         });
     }
 }

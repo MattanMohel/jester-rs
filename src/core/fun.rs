@@ -1,8 +1,10 @@
 use super::{
     id::Id, 
     env::Env, 
-    err::Err,
     obj::Obj,
+    type_id::TypeId,
+    rc_cell::RcCell,
+    err::{Err, ErrType::*},
     node::{Node, NodeIter}, 
 };
 
@@ -18,14 +20,44 @@ pub struct FnNative {
     name: String,
     params: Node,
     body: Node,
+    fold: bool,
     id: Id
 }
 
 impl Callable for FnNative {
     fn call(&self, env: &Env, args: NodeIter) -> Err<Obj> {
-        self.body
-            .iter()
-            .progn_scoped(env, self.params.iter(), args)
+        let delta = args.len().checked_sub(self.params.len());
+
+        match (delta, self.fold) {
+            (None, _) => Err(Params),
+
+            (Some(n), false) if n > 0 => Err(Params),
+
+            (Some(n), true) => {
+                let fold = args
+                    .skip(args.len() - n - 1)
+                    .map(|obj| env.eval(obj.as_ref()))
+                    .collect::<Err<Node>>()?
+                    .as_obj();
+
+                let node = vec![fold.into()];
+
+                let fold_args = args
+                    .take(args.len() - n - 1)
+                    .chain(node.iter());
+
+                self
+                    .body
+                    .iter()
+                    .progn_scoped(env, self.params.iter(), fold_args)
+            }
+
+            (Some(_), false) => {
+                self.body
+                    .iter()
+                    .progn_scoped(env, self.params.iter(), args)
+            }
+        }
     }
 
     fn name(&self) -> &String {
@@ -40,11 +72,12 @@ impl PartialEq for FnNative {
 }
 
 impl FnNative {
-    pub fn new(name: String, params: Node, body: Node) -> Self {
+    pub fn new(name: String, params: Node, body: Node, fold: bool) -> Self {
         Self {
             name,
             params,
             body,
+            fold,
             id: Id::new()
         }
     }
@@ -84,6 +117,7 @@ pub struct FnMacro {
     name: String,
     params: Node,
     body: Node,
+    fold: bool,
     id: Id
 }
 
@@ -106,11 +140,12 @@ impl PartialEq for FnMacro {
 }
 
 impl FnMacro {
-    pub fn new(name: String, params: Node, body: Node) -> Self {
+    pub fn new(name: String, params: Node, body: Node, fold: bool) -> Self {
         Self {
             name,
             params,
             body,
+            fold,
             id: Id::new()
         }
     }
@@ -120,8 +155,37 @@ impl FnMacro {
     }
 
     pub fn expand(&self, env: &Env, args: NodeIter) -> Err<Obj> {
-        self.body
-            .iter()
-            .progn_macro(env, self.params.iter(), args)
+        let delta = args.len().checked_sub(self.params.len());
+
+        match (delta, self.fold) {
+            (None, _) => Err(Params),
+
+            (Some(n), false) if n > 0 => Err(Params),
+
+            (Some(n), true) => {
+                let fold = args
+                    .skip(args.len() - n - 1)
+                    .cloned()
+                    .collect::<Node>()
+                    .as_obj();
+
+                let node = vec![fold.into()];
+
+                let fold_args = args
+                    .take(args.len() - n - 1)
+                    .chain(node.iter());
+
+                self
+                    .body
+                    .iter()
+                    .progn_macro(env, self.params.iter(), fold_args)
+            }
+
+            (Some(_), false) => {
+                self.body
+                    .iter()
+                    .progn_macro(env, self.params.iter(), args)
+            }
+        }
     }
 }

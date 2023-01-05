@@ -1,44 +1,76 @@
-(defmacro += (a b)
+(defmacro incr (a b)
 	'(set ,a (+ ,a ,b)))
 
-(defmacro ++ (a)
-	'(+= ,a ,1))
+(defmacro* for (var in [min max] body)
+	'(do
+		(set ,var ,min)
+		(loop (< ,var ,max)
+			(apply do ,body)
+			(incr ,var 1))))
 
-(defmacro map (lst fun)
-	(let (i (gen-sym 0))
-		'(loop (< ,i (len ,lst))
-			(replace ,i (,fun (nth ,i ,lst)) ,lst)
-			(++ ,i)
-			,lst)))
-
-(defun apply (fun lst)
-	(prepend '+ lst)
-	(eval lst))
-
-(defun collect ([min max] map)
-	(let (i min 
-	      col ())	  
-		(loop (< i max)
-			(append (map i) col)
-			(++ i))
-			col))
-
-(defmacro for (var in lst body)
+(defmacro* for-each (var in lst body)
 	(let (i (gen-sym))
 		'(let (,var nil)
 			(set ,i 0)
 			(loop (< ,i (len ,lst))
 				(set ,var (nth ,i ,lst))
-				(do ,body)
-				(++ ,i)))))
-	
-(set hash
-	(("0" 11)
-	 ("1" 22)
-	 ("2" 33)))
-	
-(defun get-val (key hm)
-	(for pair in hm (
-		(if (= key (nth 0 pair))
-			(println pair)))))
+				(incr ,i 1)
+				(apply do ,body)))))	
+		
+(defun* printf (frtm args)
+    (println (apply format frmt args)))
+
+(defmacro car (lst)
+	(nth 0 lst))
+
+(defmacro cdr (lst)
+	(let (cpy lst)
+		(remove 0 cpy)
+		cpy))
+
+(defun range (min max)
+	(let (col ())
+		(for i in [min max]
+			(append i col))
+			col))
+
+(defmacro take (n lst)
+	'(let (c ())
+		(for i in [0 ,n]
+			(append (nth i lst) c))
+			c))
+
+(defun slice (m n lst)
+	(let (c ())
+		(for i in [m n]
+			(append (nth i lst) c))
+			c))
+
+(defun skip (n lst)
+	(let (c ())
+		(for i in [n (len lst)]
+			(append (nth i lst) c))
+			c))
+
+;(take 3 (range 10))
+;(take 1 (skip 1 (range 10))) => (. take 1 skip 1 (range 10))
+;(let (c (take 2 comp))
+;			(append (. (skip 2 comp)) c))
+
+(defun* . (comp)
+	(println "cur: " 'comp)
+	(if (= (len comp) 1)
+		(car comp)
+		(let (c (take 2 comp))
+			(println "skip " (skip 2 comp))
+			(append (apply . (skip 2 comp)) c)
+			c)))
+
+(defmacro* . (comp)
+	(println "cur: " comp)
+	'(if (= (len ,comp) 1)
+		(car ,comp)
+		(let (c (take 2 ,comp))
+			(append (apply . (skip 2 comp)) c)
+			c)))
 
