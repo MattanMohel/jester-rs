@@ -214,13 +214,6 @@ impl TypeId for () {
 }
 
 impl Obj {
-    pub fn sym_value(&self) -> Err<&RcCell<Obj>> {
-        match self {
-            Sym(sym) => Ok(sym),
-            _ => Err(MisType)
-        }
-    }
-
     /// Coerces `Obj` into  `T: Primitive`
     /// 
     /// ## Note

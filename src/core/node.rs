@@ -65,16 +65,21 @@ impl Node {
         self.buf.push(item)
     }
 
-    pub fn insert(&mut self, i: usize, item: RcCell<Obj>) {
-        self.buf.insert(i, item)
-    }
-
-    pub fn remove(&mut self, index: usize) -> Err<Obj> {
-        if index >= self.buf.len() {
+    pub fn insert(&mut self, i: usize, item: RcCell<Obj>) -> Err {
+        if i >= self.len() {
             return Err(OutOfBound)
         }
         
-        Ok(self.buf.remove(index).as_ref().clone())
+        self.buf.insert(i, item);
+        Ok(())
+    }
+
+    pub fn remove(&mut self, i: usize) -> Err<Obj> {
+        if i >= self.len() {
+            return Err(OutOfBound)
+        }
+        
+        Ok(self.buf.remove(i).as_ref().clone())
     }
 
     pub fn get_cell(&self, i: usize) -> Err<&RcCell<Obj>> {

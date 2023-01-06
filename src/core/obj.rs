@@ -33,7 +33,7 @@ pub enum Obj {
     /// `macro-fn`
     Macro(FnMacro),
     /// `nil`
-    Nil(()),
+    Nil(())
 }
 
 use Obj::*;
@@ -53,6 +53,16 @@ impl From<&String> for Obj {
 }
 
 impl Obj {
+
+    /// Evaluates `self`
+    ///
+    /// ## Note 
+    /// This function is equivalent to `Env.eval(&obj)`
+    /// but reversed for easier function chaining
+    pub fn eval(&self, env: &Env) -> Err<Obj> {
+        env.eval(self)
+    }
+    
     /// Assigns value to clone of `other`
     /// 
     /// ## Note
@@ -94,6 +104,19 @@ impl Obj {
         }
     }
 
+    pub fn sym_value(&self) -> Err<&Obj> {
+        match self {
+            Sym(sym) => Ok(sym.as_ref()),
+            _ => Err(MisType)
+        }
+    }
+
+    pub fn sym_val_mut(&self) -> Err<&mut Obj> {
+        match self {
+            Sym(sym) => Ok(sym.as_mut()),
+            _ => Err(MisType)
+        }
+    }
 
     /// Returns the value of object as String
     pub fn as_string(&self, env: &Env) -> String {

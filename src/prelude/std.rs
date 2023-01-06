@@ -27,7 +27,7 @@ impl Env {
 
         self.add_bridge("gen-sym", |env, _| {            
             unsafe {
-                let sym = env.gen_sym(().as_obj());
+                let sym = env.gen_sym_runtime(().as_obj());
                 Ok(sym.as_obj())
             }
         });
@@ -191,7 +191,8 @@ impl Env {
 
         self.add_bridge("type-of", |env, args| {
             let res = env.eval(args.get(0)?)?;
-            Ok(res.type_string().as_obj())
+            Ok(args.get(0)?.type_string().as_obj())
+            //Ok(res.type_string().as_obj())
         });
 
         self.add_bridge("quote", |_, args| {

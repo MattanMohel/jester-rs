@@ -7,104 +7,107 @@ use crate::core::{
 impl Env {
     pub fn list_lib(&mut self) {
 
-        self.add_bridge("len", |env, args| {
-            let len = env
-                .eval(args.get(0)?)?
+        // (len list)
+        self.add_bridge("len", |_, args| {
+            let len = args
+                .get(0)?
+                .sym_value()?
                 .is_node()?
                 .len();
 
             Ok((len as i64).as_obj())
         });
 
+        // (nth list)
         self.add_bridge("nth", |env, args| {
-            let idx = env
-                .eval(args.get(0)?)?
+            let idx = args
+                .get(0)?
+                .eval(env)?
                 .is_int()?;
-
-            let nth = env
-                .eval(args.get(1)?)?;               
-
-            let res = nth.is_node()?.get_cell(idx as usize)?.clone_inner();
             
-            Ok(res)
+            Ok(args
+                .get(1)?
+                .sym_val_mut()?
+                .is_node_mut()?
+                .get_cell(idx as usize)?
+                .clone_inner())
         });
 
+        // (replace index value list)
         self.add_bridge("replace", |env, args| {
-            args
-                .get_cell(2)?
-                .map_inner(|obj| {
-                    let index = env
-                        .eval(args.get(0)?)?
-                        .is_int()? as usize;
+            let [index, value] = env.eval_args([0, 1], args)?;
+
+            let list = args
+                .get(2)?
+                .sym_val_mut()?
+                .is_node()?;
+
+            let elem = list.get_mut(index.is_int()? as usize)?;
+            let copy = elem.clone();
+            *elem = value;
                         
-                    let elem = env.eval(args.get(1)?)?;
-
-                    let list = obj.is_node()?;
-
-                    *list.get_cell(index)?.as_mut() = elem;
-
-                    Ok(list.get_cell(index)?.clone_inner())
-                })
+            Ok(copy)
         });
 
+        // (append value list)
         self.add_bridge("append", |env, args| {     
-            args
-                .get_cell(1)?
-                .map_inner(|list| {
-                    let elem = env.eval(args.get(0)?)?;
+            let value = args
+                .get(0)?
+                .eval(&env)?;
 
-                    list
-                        .is_node_mut()?
-                        .push(RcCell::from(elem.clone()));
+            let list = args
+                .get(1)?
+                .sym_val_mut()?
+                .is_node_mut()?;
 
-                    Ok(elem)
-                })
+            list.push(RcCell::from(value.clone()));
+
+            Ok(value)
         });
 
+        // (prepend item list)
         self.add_bridge("prepend", |env, args| {
-            args
-                .get_cell(1)?
-                .map_inner(|list| {
-                    let elem = env.eval(args.get(0)?)?;
+            let item = args
+                .get(0)?
+                .eval(env)?
+                .clone();
 
-                    list
-                        .is_node_mut()?
-                        .insert(0, RcCell::from(elem.clone()));
+            let list = args
+                .get(1)?
+                .sym_val_mut()?
+                .is_node_mut()?;
 
-                    Ok(elem)
-                })
+            list.insert(0, RcCell::from(item.clone()))?;        
+            Ok(item)
         });
 
+        // (insert index item list)
         self.add_bridge("insert", |env, args| {
-            args
-                .get_cell(2)?
-                .map_inner(|list| {
-                    let idx = env
-                        .eval(args.get(0)?)?
-                        .is_int()?;
-    
-                    let elem = env.eval(args.get(1)?)?;
-        
-                    list
-                        .is_node_mut()?
-                        .insert(idx as usize, RcCell::from(elem.clone()));
-                    
-                    Ok(elem)
-                })
+            let [index, item] = env.eval_args([0, 1], args)?;
+
+            let list = args
+                .get(2)?
+                .sym_val_mut()?
+                .is_node_mut()?;
+
+            list.insert(index.is_int()? as usize, RcCell::from(item.clone()))?;  
+            Ok(item)
         });
 
+        // (remove index list)
         self.add_bridge("remove", |env, args| {
-            args
-                .get_cell(1)?
-                .map_inner(|list| {
-                    let idx = env
-                        .eval(args.get(0)?)?
-                        .is_int()?;
-        
-                    list
-                        .is_node_mut()?
-                        .remove(idx as usize)
-                })
+            let index = args
+                .get(0)?
+                .eval(env)?
+                .is_int()? as usize;
+
+            let list = args
+                .get(1)?
+                .sym_val_mut()?
+                .is_node_mut()?;
+
+            let rem = list.remove(index)?;        
+            Ok(rem)
         });
     }
 }

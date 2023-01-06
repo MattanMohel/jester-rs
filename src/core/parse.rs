@@ -75,9 +75,7 @@ impl Lexer {
         // whether parsing string
         let mut str  = false;
 
-        for (i, ch) in src.chars().enumerate() {                 
-            // string extraction - special case
-            
+        for (i, ch) in src.chars().enumerate() {                             
             match ch {
                 '\n' if !str => com = false,
                 ';' if !str => com = !com,
@@ -257,18 +255,27 @@ impl Lexer {
     fn to_syntax_tree(&mut self, env: &mut Env) -> Node {
         let mut cur_node = Node::default();
         let mut pre_node = Vec::new();
+        let mut depth: isize = 0;
         
         for tok in self.toks.iter() {
             match &tok.tok_type {
                 Beg => {
+                    depth += 1;
+                    
                     pre_node.push(cur_node);     
                     cur_node = Node::default();
                 }
 
                 End => {
+                    depth -= 1;
+
+                    if depth < 0 {
+                        panic!("too many ')'!")
+                    }
+                    
                     if let Some(mut parent) = pre_node.pop() {
-                        let obj = env.add_sym(&Env::unique_sym(), cur_node.as_obj());
-                        parent.push(obj);
+                        let obj = env.gen_sym(cur_node.as_obj());
+                        parent.push(RcCell::from(Obj::Sym(obj)));
 
                         cur_node = parent;
                     }
@@ -285,6 +292,10 @@ impl Lexer {
                 
                 _ => ()
             }
+        }
+
+        if depth != 0 {
+            panic!("imbalanced parenthesis!")
         }
 
         cur_node

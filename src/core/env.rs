@@ -82,7 +82,12 @@ impl Env {
         self.add_sym(sym, obj)
     }
 
-    pub unsafe fn gen_sym(&self, obj: Obj) -> RcCell<Obj> {   
+    pub fn gen_sym(&mut self, obj: Obj) -> RcCell<Obj> {   
+        let sym = Env::unique_sym();
+        self.add_sym(sym.as_str(), obj)
+    }
+
+    pub unsafe fn gen_sym_runtime(&self, obj: Obj) -> RcCell<Obj> {   
         // coerce self mutability   
         let ptr = (self as *const Self) as *mut Self;
             

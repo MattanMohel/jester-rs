@@ -17,7 +17,7 @@
 				(incr ,i 1)
 				(apply do ,body)))))	
 		
-(defun* printf (frtm args)
+(defun* printf (frmt args)
     (println (apply format frmt args)))
 
 (defmacro car (lst)
@@ -34,8 +34,8 @@
 			(append i col))
 			col))
 
-(defmacro take (n lst)
-	'(let (c ())
+(defun take (n lst)
+	(let (c ())
 		(for i in [0 ,n]
 			(append (nth i lst) c))
 			c))
@@ -46,31 +46,20 @@
 			(append (nth i lst) c))
 			c))
 
+(defun rev (lst)
+    (let (c ())
+        (for i in [0 (len lst)]
+            (append (nth (- (len lst) i)) c))
+        c))
+
 (defun skip (n lst)
 	(let (c ())
 		(for i in [n (len lst)]
 			(append (nth i lst) c))
 			c))
 
-;(take 3 (range 10))
-;(take 1 (skip 1 (range 10))) => (. take 1 skip 1 (range 10))
-;(let (c (take 2 comp))
-;			(append (. (skip 2 comp)) c))
+(defmacro* chain (co)
+    '(for-each i in ,co
+        (println i)))
 
-(defun* . (comp)
-	(println "cur: " 'comp)
-	(if (= (len comp) 1)
-		(car comp)
-		(let (c (take 2 comp))
-			(println "skip " (skip 2 comp))
-			(append (apply . (skip 2 comp)) c)
-			c)))
-
-(defmacro* . (comp)
-	(println "cur: " comp)
-	'(if (= (len ,comp) 1)
-		(car ,comp)
-		(let (c (take 2 ,comp))
-			(append (apply . (skip 2 comp)) c)
-			c)))
-
+; (chain (range 10))

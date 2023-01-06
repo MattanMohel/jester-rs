@@ -3,7 +3,8 @@ use super::{
     err::Err,
     env::Env,
     fun::Callable, 
-    type_id::TypeId
+    type_id::TypeId,
+    node::NodeIter
 };
 
 impl Env {
@@ -24,9 +25,25 @@ impl Env {
                 }     
             }
 
-            Sym(sym) => Ok(sym.clone_inner()),  
+            Sym(sym) => {
+                match sym.as_ref() {
+                    Lst(_) => self.eval(sym.as_ref()),
+                    _ => Ok(sym.clone_inner())
+                }
+            }
              
             _ => Ok(obj.clone())
         }
+    }
+
+    pub fn eval_args<const L: usize>(&self, indices: [usize; L], args: NodeIter) -> Err<[Obj; L]> {
+        const NIL: Obj = Obj::Nil(());
+        let mut arr = [NIL; L];
+        
+        for (i, index) in indices.iter().enumerate() {
+            arr[i] = self.eval(args.get(*index)?)?;
+        }
+
+        Ok(arr)
     }
 }
