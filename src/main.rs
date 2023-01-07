@@ -30,7 +30,7 @@ fn main() -> Err {
 
     let mut env = Env::new()?;
 
-    // env.add_from_file("src/scripts/test.lsp")?;
+    env.add_from_file("src/scripts/test.lsp")?;
 
     env.repl()?;
 

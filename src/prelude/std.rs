@@ -2,115 +2,130 @@ use crate::core::{
     env::Env,
     type_id::TypeId, 
     fun::{FnNative, FnMacro},
-    err::ErrType::*, obj::Obj, node::Node, rc_cell::RcCell
+    err::ErrType::*, obj::Obj, obj::*, node::Node, rc_cell::RcCell
 };
 
 impl Env {
     pub fn std_lib(&mut self) {
 
-        self.add_primitive("nil", ());
+        // constant Nil - nil
+        self.add_primitive("Nil", ());
 
-        self.add_primitive("true", true);
+        // constant True - true
+        self.add_primitive("True", true);
 
-        self.add_primitive("false", false);
+        // constant False - false
+        self.add_primitive("False", false);
         
+        // (set lhs rhs)
         self.add_bridge("set", |env, args| {
-            let val = env.eval(args.get(1)?)?;
+            let rhs = args
+                .get(1)?
+                .eval(env)?;
 
             args
                 .get_cell(0)?
                 .as_mut()
-                .assign(&val);
+                .assign(&rhs);
             
-            Ok(val)
+            Ok(rhs)
         });
 
+        // (gen-sym)
         self.add_bridge("gen-sym", |env, _| {            
             unsafe {
-                let sym = env.gen_sym_runtime(().as_obj());
+                let sym = env.gen_sym_runtime(Obj::Nil(()));
                 Ok(sym.as_obj())
             }
         });
 
+        // (loop cond ..body)
         self.add_bridge("loop", |env, args| {
-            let mut res = ().as_obj();
-            let cond = args.get(0)?;
+            let mut ret = Obj::Nil(());
 
-            while *env.eval(cond)?.is_bool()? {
-                res = args
+            while *args.get(0)?.eval(env)?.is_bool()? {
+                ret = args
                     .shift()
                     .progn(|obj| env.eval(obj.as_ref()))?;
             }
             
-            Ok(res)
+            Ok(ret)
         });
 
-        self.add_bridge("defun", |env, node| {
-            let sym = node.get_cell(0)?;
+        // (defun symbol params ..body)
+        self.add_bridge("defun", |env, args| {
+            let sym = args.get_cell(0)?;
 
             let name = env
                 .get_sym_id(sym.as_ref().is_symbol()?)
                 .unwrap();
 
-            let params = node
+            let params = args
                 .get(1)?
+                .sym_value()?
                 .is_node()?
                 .clone();
 
-            let body = node
+            let body = args
                 .skip(2)
                 .cloned()
                 .collect();
 
             let native = FnNative::new(name, params, body, false);
-
             sym.as_mut().assign_to(native);
-            Ok(node.get(0)?.clone())
+
+            Ok(sym.as_ref().clone())
         });
 
-        self.add_bridge("defun*", |env, node| {
-            let sym = node.get_cell(0)?;
+        // (defun* name params ..body)
+        self.add_bridge("defun*", |env, args| {
+            let sym = args.get_cell(0)?;
 
             let name = env
                 .get_sym_id(sym.as_ref().is_symbol()?)
                 .unwrap();
 
-            let params = node
+            let params = args
                 .get(1)?
+                .sym_value()?
                 .is_node()?
                 .clone();
 
-            let body = node
+            let body = args
                 .skip(2)
                 .cloned()
                 .collect();
 
             let native = FnNative::new(name, params, body, true);
-
             sym.as_mut().assign_to(native);
-            Ok(node.get(0)?.clone())
+
+            Ok(sym.as_ref().clone())
         });
 
-        self.add_bridge("lambda", |_, node| {
-            let name = Env::unique_sym();
-
-            let params = node
+        // (lambda params ..body)
+        self.add_bridge("lambda", |_, args| {
+            let params = args
                 .get(0)?
+                .sym_value()?
                 .is_node()?
                 .clone();
-
-            let body = node
+                
+            let body = args
                 .skip(1)
                 .cloned()
                 .collect();
-
+            
+            let name = Env::unique_sym();
             let native = FnNative::new(name, params, body, false);
+
             Ok(native.as_obj())
         });
 
+        // (let params ..body)
         self.add_bridge("let", |env, args| {
             let fst = args
-                .get(0)?;
+                .get(0)?
+                .sym_value()?;
             
             let params = fst
                 .is_node()?
@@ -128,157 +143,182 @@ impl Env {
                 .progn_scoped(env, params, inputs)
         });
 
+        // (do ..body)
         self.add_bridge("do", |env, args| {
-            args
-                .progn(|obj| env.eval(obj.as_ref()))
+            args.progn(|obj| env.eval(obj.as_ref()))
         });
 
-        self.add_bridge("defmacro", |env, node| {
-            let sym = node.get_cell(0)?;
+        // (defmacro params ..body)
+        self.add_bridge("defmacro", |env, args| {
+            let sym = args.get_cell(0)?;
 
             let name = env
                 .get_sym_id(sym.as_ref().is_symbol()?)
                 .unwrap();
 
-            let params = node
+            let params = args
                 .get(1)?
+                .sym_value()?
                 .is_node()?
                 .clone();
 
-            let body = node
+            let body = args
                 .skip(2)
                 .cloned()
                 .collect();
 
-            let macro_native = FnMacro::new(name, params, body, false);
+            let native = FnMacro::new(name, params, body, false);
+            sym.as_mut().assign_to(native);
 
-            sym.as_mut().assign_to(macro_native);
-            Ok(node.get(0)?.clone())
+            Ok(sym.as_ref().clone())
         });
 
-        self.add_bridge("defmacro*", |env, node| {
-            let sym = node.get_cell(0)?;
+        // (defmacro* params ..body)
+        self.add_bridge("defmacro*", |env, args| {
+            let sym = args.get_cell(0)?;
 
             let name = env
                 .get_sym_id(sym.as_ref().is_symbol()?)
                 .unwrap();
 
-            let params = node
+            let params = args
                 .get(1)?
+                .sym_value()?
                 .is_node()?
                 .clone();
 
-            let body = node
+            let body = args
                 .skip(2)
                 .cloned()
                 .collect();
 
-            let macro_native = FnMacro::new(name, params, body, true);
+            let native = FnMacro::new(name, params, body, true);
+            sym.as_mut().assign_to(native);
 
-            sym.as_mut().assign_to(macro_native);
-            Ok(node.get(0)?.clone())
+            Ok(sym.as_ref().clone())
         });
 
+        // (macro-expand macro)
         self.add_bridge("macro-expand", |env, node| {
-            let node = node.get(0)?;
-            let node = node.is_node()?;
+            let mac = node
+                .get(0)?
+                .sym_value()?
+                .is_node()?;
 
-            match env.eval(node.get(0)?)? {
-                Obj::Macro(f) => f.expand(env, node.iter_from(1)),   
+            match mac.get(0)?.eval(env)? {
+                Obj::Macro(f) => f.expand(env, mac.iter_from(1)),   
                 _ => Err(MisType)        
             }     
         });
 
+        // (type-of item)
         self.add_bridge("type-of", |env, args| {
-            let res = env.eval(args.get(0)?)?;
-            Ok(args.get(0)?.type_string().as_obj())
-            //Ok(res.type_string().as_obj())
+            let item = args.get(0)?.eval(env)?;
+            Ok(item.type_string().as_obj())
         });
 
+        // (quote item)
         self.add_bridge("quote", |_, args| {
             Ok(args.get(0)?.clone())
         });
 
+        // (eval item)
         self.add_bridge("eval", |env, args| {
-            let fst = env.eval(args.get(0)?)?;
-            env.eval(&fst)
+            args.get(0)?
+                .eval(env)?
+                .eval(env)
         });
 
+        // (assert cond)
         self.add_bridge("assert", |env, args| {
-            let res = env
-                .eval(args.get(0)?)?
-                .eq(&true.as_obj())?;
+            let cond = args
+                .get(0)?
+                .eval(env)?
+                .eq(&Obj::Bool(true))?;
 
-            if res {
-                Ok(true.as_obj())
+            if cond {
+                Ok(Obj::Bool(true))
             } else {
                 Err(RuntimeAssert)
             }
         });
 
+        // (assert-eq lhs rhs)
         self.add_bridge("assert-eq", |env, args| {
-            let res = env
-                .eval(args.get(0)?)?
-                .eq(&env.eval(args.get(1)?)?)?;
+            let cond = args
+                .get(0)?
+                .eval(env)?
+                .eq(&args.get(1)?.eval(env)?)?;
 
-            if res {
-                Ok(true.as_obj())
+            if cond {
+                Ok(Obj::Bool(true))
             } else {
                 Err(RuntimeAssert)
             }
         });
 
+        // (if cond then else)
         self.add_bridge("if", |env, args| {
-            let cond = *env
-                .eval(args.get(0)?)?
+            let cond = *args
+                .get(0)?
+                .eval(env)?
                 .is_bool()?;
 
             if cond {
-                env.eval(args.get(1)?)
+                args
+                    .get(1)?
+                    .eval(env)
             } 
             else {
                 match args.get_cell(2) {
-                    Ok(or) => env.eval(or.as_ref()),
-                    Err(_) => Ok(().as_obj())
+                    Ok(not) => not.as_ref().eval(env),
+                    Err(_) => Ok(Obj::Nil(()))
                 }
             }
         });
 
+        // (when cond ..then)
         self.add_bridge("when", |env, args| {
-            let cond = *env
-                .eval(args.get(0)?)?
+            let cond = *args
+                .get(0)?
+                .eval(env)?
                 .is_bool()?;
 
             if cond {
                 args
                     .shift()
-                    .progn(|obj| env.eval(obj.as_ref()))
+                    .progn(|obj| obj.as_ref().eval(env))
             } 
             else {
-                Ok(().as_obj())
+                Ok(Obj::Nil(()))
             }
         });
         
+        // (unles cond ..then)
         self.add_bridge("unless", |env, args| {
-            let cond = *env
-                .eval(args.get(0)?)?
+            let cond = *args
+                .get(0)?
+                .eval(env)?
                 .is_bool()?;
 
             if !cond {
                 args
                     .shift()
-                    .progn(|obj| env.eval(obj.as_ref()))
+                    .progn(|obj| obj.as_ref().eval(env))
             } 
             else {
-                Ok(().as_obj())
+                Ok(Obj::Nil(()))
             }
         });
 
+        // (apply ..items)
         self.add_bridge("apply", |env, args| {
             let mut node = Node::from(vec![args.get_cell(0)?.clone()]);
 
-            for elem in args.skip(1) {
-                let obj = env.eval(elem.as_ref())?;
+            for item in args.skip(1) {
+                let obj = item
+                    .as_ref()
+                    .sym_value()?;
 
                 match &obj {
                     Obj::Lst(lst) => {
@@ -286,11 +326,11 @@ impl Env {
                             node.push(elem.clone());
                         }
                     }
-                    _ => node.push(RcCell::from(obj))
+                    _ => node.push(RcCell::from(obj.clone()))
                 }
             }
             
-            env.eval(&node.as_obj())
+            node.as_obj().eval(env)
         });
     }
 }

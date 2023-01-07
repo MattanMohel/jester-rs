@@ -10,6 +10,13 @@ use super::{
 impl Env {
     pub fn eval(&self, obj: &Obj) -> Err<Obj> {    
         match obj {
+            Sym(sym) => {
+                match sym.as_ref() {
+                    Lst(_) => sym.as_ref().eval(self),
+                    _ => Ok(sym.clone_inner())
+                }
+            }
+            
             Lst(node) if !node.is_empty() => {       
                 match node.get(0).unwrap() {
                     Sym(sym) => {
@@ -20,18 +27,10 @@ impl Env {
                             _ => Ok(node.evaled(self)?.as_obj())
                         }
                     }
-
                     _ => Ok(node.evaled(self)?.as_obj())
                 }     
             }
-
-            Sym(sym) => {
-                match sym.as_ref() {
-                    Lst(_) => self.eval(sym.as_ref()),
-                    _ => Ok(sym.clone_inner())
-                }
-            }
-             
+         
             _ => Ok(obj.clone())
         }
     }
@@ -41,7 +40,7 @@ impl Env {
         let mut arr = [NIL; L];
         
         for (i, index) in indices.iter().enumerate() {
-            arr[i] = self.eval(args.get(*index)?)?;
+            arr[i] = args.get(*index)?.eval(self)?;
         }
 
         Ok(arr)
