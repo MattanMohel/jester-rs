@@ -2,15 +2,14 @@
 
 ## Quick Q&A
 
-__What is This Exactly?__
-
+### What is This Exactly?
 Jester Script is a Lisp-inspired scripting langauge written in Rust
 
-__Why Was This Created?__
+### Why Was This Created?
 
 Because I wanted to. The name "Jester" was concieved because this project was originally supposed to be a joke - yet here we are. I went through countless iterations before reaching the present structure, and who knows what's to come in the future
 
-__How is it Maintained__
+### How is it Maintained?
 
 Jester Script is solely maintained by me, so while it works great in testing, there's are no guarantees! If you're looking for a well-maintained scripting langauges, this isn't it 
 
