@@ -18,13 +18,13 @@ Jester Script is solely maintained by me, so while it works great in testing, th
 
 Lisp and Jester Script use a variant on a prefix notation known as __S-Expressions__. These expressions follow the following form:
 ```
-; (operator arguments):
+; (operator arguments)
 (+ 1 2) ; operator = '+', arguments = '1, 2'
 (* 3 4 5 6) ; operator = '*', arguments = '3, 4, 5, 6'
 (println "hello there!") ; operator = 'println', arguments = '"hello there!"'
 ```
 
-_In Lisp, ```;``` designates a comment - as if to ridicule all other langauges (but not really). 
+_In Lisp, `;` designates a comment - as if to ridicule all other langauges (but not really). 
 Also note that everything is separated by whitespace... the comma will come into play later, but for a different cause_
 
 Additionally, there is no "order of operations." Order is decided by the placement of the parentheses:
