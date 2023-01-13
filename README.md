@@ -162,7 +162,7 @@ X ; why is there a capital x here?
 "less favorite variable"
 ```
 
-_Note, because `quote` is so integral to Lisp, it has an integrated abbreviation (one of the few syntax abberations): `(quote x) = 'x`
+_Note, because `quote` is so integral to Lisp, it has an integrated abbreviation (one of the few syntax abberations): `(quote x) = 'x`_
 
 If you saw this and thought that `quote` is just a special way to say `reference` or `&` or `*`, you're partially right, but also completely wrong
 
