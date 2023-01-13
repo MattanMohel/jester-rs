@@ -55,10 +55,6 @@ impl From<&String> for Obj {
 impl Obj {
 
     /// Evaluates `self`
-    ///
-    /// ## Note 
-    /// This function is equivalent to `Env.eval(&obj)`
-    /// but reversed for easier function chaining
     pub fn eval(&self, env: &Env) -> Err<Obj> {
         env.eval(self)
     }
@@ -66,7 +62,7 @@ impl Obj {
     /// Assigns value to clone of `other`
     /// 
     /// ## Note
-    /// Panics if `self != Sym`
+    /// Panics if not `Sym`
     pub fn assign(&mut self, other: &Obj) {
         match self {
             Sym(obj) => *obj.as_mut() = other.clone(),
@@ -77,7 +73,7 @@ impl Obj {
     /// Assigns value to clone of `other` as an `Obj`
     ///     
     /// ## Note
-    /// Panics if `self != Sym`
+    /// Panics if not `Sym`
     pub fn assign_to<T: TypeId>(&mut self, other: T) {
         match self {
             Sym(obj) => *obj.as_mut() = other.as_obj(),
@@ -95,8 +91,7 @@ impl Obj {
         Obj::Bridge(FnBridge::new(sym, bridge))
     }
 
-    /// Returns the value of object as 
-    /// String for the intent of `io` display
+    /// Returns value for display
     pub fn display(&self, env: &Env) -> String {
         match self {
             Str(x) => format!("\"{}\"", x.as_string(env)),
@@ -115,6 +110,20 @@ impl Obj {
         match self {
             Sym(sym) => Ok(sym.as_mut()),
             _ => Err(MisType)
+        }
+    }
+
+    pub fn val(&self) -> &Obj {
+        match self {
+            Sym(sym) => sym.as_ref(),
+            _ => self
+        }
+    }
+
+    pub fn val_mut(&mut self) -> &mut Obj {
+        match self {
+            Sym(sym) => sym.as_mut(),
+            _ => self
         }
     }
 

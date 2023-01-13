@@ -11,7 +11,7 @@ impl Env {
         self.add_bridge("len", |_, args| {
             let len = args
                 .get(0)?
-                .sym_value()?
+                .val()
                 .is_node()?
                 .len();
 
@@ -26,8 +26,8 @@ impl Env {
                 .is_int()?;
             
             Ok(args
-                .get(1)?
-                .sym_val_mut()?
+                .get_mut(1)?
+                .val_mut()
                 .is_node_mut()?
                 .get_cell(idx as usize)?
                 .clone_inner())
@@ -38,8 +38,8 @@ impl Env {
             let [index, value] = env.eval_args([0, 1], args)?;
 
             let list = args
-                .get(2)?
-                .sym_val_mut()?
+                .get_mut(2)?
+                .val_mut()
                 .is_node()?;
 
             let elem = list.get_mut(index.is_int()? as usize)?;
@@ -56,8 +56,8 @@ impl Env {
                 .eval(&env)?;
 
             let list = args
-                .get(1)?
-                .sym_val_mut()?
+                .get_mut(1)?
+                .val_mut()
                 .is_node_mut()?;
 
             list.push(RcCell::from(value.clone()));
@@ -73,8 +73,8 @@ impl Env {
                 .clone();
 
             let list = args
-                .get(1)?
-                .sym_val_mut()?
+                .get_mut(1)?
+                .val_mut()
                 .is_node_mut()?;
 
             list.insert(0, RcCell::from(item.clone()))?;        
@@ -86,8 +86,8 @@ impl Env {
             let [index, item] = env.eval_args([0, 1], args)?;
 
             let list = args
-                .get(2)?
-                .sym_val_mut()?
+                .get_mut(2)?
+                .val_mut()
                 .is_node_mut()?;
 
             list.insert(index.is_int()? as usize, RcCell::from(item.clone()))?;  
@@ -102,8 +102,8 @@ impl Env {
                 .is_int()? as usize;
 
             let list = args
-                .get(1)?
-                .sym_val_mut()?
+                .get_mut(1)?
+                .val_mut()
                 .is_node_mut()?;
 
             let rem = list.remove(index)?;        
