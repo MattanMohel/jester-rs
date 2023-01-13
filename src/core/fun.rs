@@ -3,7 +3,6 @@ use super::{
     env::Env, 
     obj::Obj,
     type_id::TypeId,
-    rc_cell::RcCell,
     err::{Err, ErrType::*},
     node::{Node, NodeIter}, 
 };

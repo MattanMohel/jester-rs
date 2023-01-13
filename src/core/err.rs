@@ -34,7 +34,7 @@ impl Display for ErrType {
 }
 
 impl From<io::Error> for ErrType {
-    fn from(err: io::Error) -> Self {
+    fn from(_: io::Error) -> Self {
         ErrType::IoErr
     }
 }

@@ -1,8 +1,11 @@
 use crate::core::{
     env::Env,
+    obj::Obj,
+    node::Node, 
+    rc_cell::RcCell,
     type_id::TypeId, 
+    err::ErrType::*, 
     fun::{FnNative, FnMacro},
-    err::ErrType::*, obj::Obj, obj::*, node::Node, rc_cell::RcCell
 };
 
 impl Env {
@@ -31,10 +34,16 @@ impl Env {
             Ok(rhs)
         });
 
-        // (gen-sym)
-        self.add_bridge("gen-sym", |env, _| {            
+        // (gen-sym &optional val)
+        self.add_bridge("gen-sym", |env, args| {            
             unsafe {
-                let sym = env.gen_sym_runtime(Obj::Nil(()));
+                let val;
+                match args.get(0) {
+                    Ok(opt) => val = opt.eval(env)?,
+                    _ => val = Obj::Nil(())
+                }
+
+                let sym = env.gen_sym_runtime(val);
                 Ok(sym.as_obj())
             }
         });
@@ -62,7 +71,6 @@ impl Env {
 
             let params = args
                 .get(1)?
-                .sym_value()?
                 .is_node()?
                 .clone();
 
@@ -87,7 +95,6 @@ impl Env {
 
             let params = args
                 .get(1)?
-                .sym_value()?
                 .is_node()?
                 .clone();
 
@@ -106,7 +113,6 @@ impl Env {
         self.add_bridge("lambda", |_, args| {
             let params = args
                 .get(0)?
-                .sym_value()?
                 .is_node()?
                 .clone();
                 
@@ -123,10 +129,8 @@ impl Env {
 
         // (let params ..body)
         self.add_bridge("let", |env, args| {
-            let fst = args
-                .get(0)?
-                .sym_value()?;
-            
+            let fst = args.get(0)?;
+
             let params = fst
                 .is_node()?
                 .iter()
@@ -158,7 +162,6 @@ impl Env {
 
             let params = args
                 .get(1)?
-                .sym_value()?
                 .is_node()?
                 .clone();
 
@@ -183,7 +186,6 @@ impl Env {
 
             let params = args
                 .get(1)?
-                .sym_value()?
                 .is_node()?
                 .clone();
 
@@ -202,7 +204,7 @@ impl Env {
         self.add_bridge("macro-expand", |env, node| {
             let mac = node
                 .get(0)?
-                .sym_value()?
+                .val()
                 .is_node()?;
 
             match mac.get(0)?.eval(env)? {
@@ -318,7 +320,7 @@ impl Env {
             for item in args.skip(1) {
                 let obj = item
                     .as_ref()
-                    .sym_value()?;
+                    .val();
 
                 match &obj {
                     Obj::Lst(lst) => {

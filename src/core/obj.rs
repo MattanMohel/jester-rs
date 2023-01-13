@@ -38,20 +38,6 @@ pub enum Obj {
 
 use Obj::*;
 
-impl From<&String> for Obj {
-    fn from(str: &String) -> Self {
-        if let Ok(num) = Obj::sym_to_num(str) {
-            num
-        }
-        else if let Some(str) = Obj::sym_to_str(str) {
-            str
-        }
-        else {
-            Obj::Nil(())
-        }
-    }
-}
-
 impl Obj {
 
     /// Evaluates `self`
@@ -63,7 +49,7 @@ impl Obj {
     /// 
     /// ## Note
     /// Panics if not `Sym`
-    pub fn assign(&mut self, other: &Obj) {
+    pub fn assign(&mut self, other: &Self) {
         match self {
             Sym(obj) => *obj.as_mut() = other.clone(),
             _ => panic!("can't assign to non-symbol!")
@@ -82,13 +68,13 @@ impl Obj {
     }
 
     /// Creates a new `Obj::T`
-    pub fn new_value<T: TypeId>(val: T) -> Obj {
+    pub fn new_value<T: TypeId>(val: T) -> Self {
         val.as_obj()
     }
 
     /// Creates a new `Obj::FnBridge(bridge)`
-    pub fn new_bridge(sym: String, bridge: Bridge) -> Obj {
-        Obj::Bridge(FnBridge::new(sym, bridge))
+    pub fn new_bridge(sym: String, bridge: Bridge) -> Self {
+        Bridge(FnBridge::new(sym, bridge))
     }
 
     /// Returns value for display
@@ -99,28 +85,42 @@ impl Obj {
         }
     }
 
-    pub fn sym_value(&self) -> Err<&Obj> {
+    /// Parses an `Obj` literal from a String, returning
+    /// `None` if the `str` is not a `Jester-rs` literal 
+    pub fn parse_literal(str: &String) -> Option<Self> {
+        if let Ok(num) = Obj::sym_to_num(str) {
+            Some(num)
+        }
+        else if let Some(str) = Obj::sym_to_str(str) {
+            Some(str)
+        }
+        else {
+            None
+        }
+    }
+
+    pub fn sym_value(&self) -> Err<&Self> {
         match self {
             Sym(sym) => Ok(sym.as_ref()),
             _ => Err(MisType)
         }
     }
 
-    pub fn sym_val_mut(&self) -> Err<&mut Obj> {
+    pub fn sym_val_mut(&self) -> Err<&mut Self> {
         match self {
             Sym(sym) => Ok(sym.as_mut()),
             _ => Err(MisType)
         }
     }
 
-    pub fn val(&self) -> &Obj {
+    pub fn val(&self) -> &Self {
         match self {
             Sym(sym) => sym.as_ref(),
             _ => self
         }
     }
 
-    pub fn val_mut(&mut self) -> &mut Obj {
+    pub fn val_mut(&mut self) -> &mut Self {
         match self {
             Sym(sym) => sym.as_mut(),
             _ => self
@@ -148,7 +148,7 @@ impl Obj {
     /// Returns the type of object as String
     pub fn type_string(&self) -> String {
         match self {
-            Sym(_)    => RcCell::<Obj>::type_str(),
+            Sym(_)    => RcCell::<Self>::type_str(),
             Lst(_)    => Node::type_str(),
             I32(_)    => i32::type_str(),
             I64(_)    => i64::type_str(),
@@ -173,7 +173,7 @@ impl Obj {
     /// None |  123
     /// None |  abc
     /// ```
-    pub fn sym_to_str(src: &String) -> Option<Obj> {
+    pub fn sym_to_str(src: &String) -> Option<Self> {
         // asserts if src begins and ends with ""
         if &src[0..1] != "\"" || &src[src.len() - 1..] != "\"" {
             return None
@@ -212,7 +212,7 @@ impl Obj {
     /// ```
     /// i.e. #h6_68A0 == 420_000
     /// ```
-    pub fn sym_to_num(str: &String) -> Err<Obj> {
+    pub fn sym_to_num(str: &String) -> Err<Self> {
         // remove all '_'
         let str: String = str
             .chars()

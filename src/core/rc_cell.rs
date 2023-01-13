@@ -3,11 +3,6 @@ use std::{
     rc::Rc
 };
 
-use super::{
-    obj::Obj, 
-    err::Err
-};
-
 pub struct RcCell<T> {
     raw: Rc<RefCell<T>>
 }
@@ -74,17 +69,5 @@ impl<T> RcCell<T> {
 
     pub fn raw_eq(&self, other: &Self) -> bool {
         self.as_raw().as_ptr() == other.as_raw().as_ptr()
-    }
-}
-
-impl RcCell<Obj> {
-    /// Mutates the inner `Sym` value 
-    pub fn map_inner<F>(&self, mut map: F) -> Err<Obj>
-    where
-        F: FnMut(&mut Obj) -> Err<Obj>
-    {
-        let sym = self.as_mut();
-        let sym = sym.is_symbol_mut()?;
-        map(sym.as_mut())
     }
 }

@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap, 
+    io::Write, 
+    time::{Duration, Instant}
+};
 
 use super::{
     obj::Obj,
@@ -10,6 +14,10 @@ use super::{
 
 // TODO: work on namespaces - module tree qualifiers
 
+/// Path to native prelude definitions 
+const PRELUDE_PATH: &str = "src/scripts/prelude.lsp";
+/// String introduction for `REPL` mode
+const REPL_HEADER: &str = "Welcome to Jester Script, the Rust-Lisp Scripting Langauge!\nDeveloped by Mattan Mohel, 2021-2023";
 
 
 /// `Jester-rs` Environment struct
@@ -33,6 +41,7 @@ impl Env {
         env.std_lib();
         env.io_lib();
         env.list_lib();
+        env.add_from_file(PRELUDE_PATH)?;
             
         Ok(env)
     }
@@ -98,5 +107,42 @@ impl Env {
             }
             None => panic!("environment not initialized!")
         } 
+    }
+    
+    pub fn repl(&mut self) -> Err {
+        println!("{}", REPL_HEADER);
+
+        let mut time = Duration::new(0, 0);
+
+        loop {
+            print!(">> ");
+            std::io::stdout().flush()?;
+
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
+
+            match input.trim() {
+                "--help" => {
+                    unimplemented!()
+                }
+                "--quit" => {
+                    println!("quitting...");
+                    break;
+                },
+                "--time" => {
+                    println!("completed in: {:?}...", time);
+                    continue;
+                },
+                _ => ()
+            }
+
+            let start = Instant::now();
+            let res = self.add_from_string(&input.trim().to_string())?;
+            time = start.elapsed();
+
+            println!("{}", res.display(self));
+        }
+
+        Ok(())
     }
 }

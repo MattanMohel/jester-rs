@@ -1,10 +1,6 @@
-use std::io::Write;
-use std::time::{Duration, Instant};
-
 use super::{
     node::Node, 
     obj::Obj, 
-    rc_cell::RcCell, 
     type_id::TypeId,
     env::Env, 
     err::Err,
@@ -268,26 +264,29 @@ impl Lexer {
 
                 End => {
                     depth -= 1;
-
                     if depth < 0 {
-                        panic!("too many ')'!")
+                        panic!("too many left parentheses!");
                     }
                     
                     if let Some(mut parent) = pre_node.pop() {
                         let obj = env.gen_sym(cur_node.as_obj());
-                        parent.push(RcCell::from(Obj::Sym(obj)));
-
+                        parent.push(obj.into());
                         cur_node = parent;
                     }
                 }
 
                 Sym(sym) => {
-                    if !env.has_sym(&sym) {
-                        env.add_sym(&sym, Obj::from(sym));
-                    }
+                    match Obj::parse_literal(sym) {
+                        Some(literal) => cur_node.push(literal.into()),
+                        _ => {
+                            if !env.has_sym(&sym) {
+                                env.add_sym(&sym, Obj::Nil(()));
+                            }
 
-                    let obj = env.get_sym(&sym).unwrap();
-                    cur_node.push(RcCell::from(Obj::Sym(obj)))
+                            let obj = env.get_sym(&sym).unwrap();
+                            cur_node.push(Obj::Sym(obj).into()); 
+                        }
+                    }
                 }
                 
                 _ => ()
@@ -295,7 +294,7 @@ impl Lexer {
         }
 
         if depth != 0 {
-            panic!("imbalanced parenthesis!")
+            panic!("imbalanced parentheses!")
         }
 
         cur_node
@@ -311,40 +310,5 @@ impl Env {
     pub fn add_from_file(&mut self, path: &str) -> Err<Obj> {
         let src = std::fs::read_to_string(path.to_string()).expect("couldn't read file!");
         Lexer::new(self, &src)
-    }
-
-    pub fn repl(&mut self) -> Err<()> {
-        let mut time = Duration::new(0, 0);
-
-        loop {
-            print!(">> ");
-            std::io::stdout().flush()?;
-
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input)?;
-
-            match input.trim() {
-                "--help" => {
-                    unimplemented!()
-                }
-                "--quit" => {
-                    println!("quitting...");
-                    break;
-                },
-                "--time" => {
-                    println!("completed in: {:?}...", time);
-                    continue;
-                },
-                _ => ()
-            }
-
-            let start = Instant::now();
-            let res = self.add_from_string(&input.trim().to_string())?;
-            time = start.elapsed();
-
-            println!("{}", res.display(self));
-        }
-
-        Ok(())
     }
 }

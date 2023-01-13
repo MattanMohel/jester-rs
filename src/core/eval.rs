@@ -9,14 +9,7 @@ use super::{
 
 impl Env {
     pub fn eval(&self, obj: &Obj) -> Err<Obj> {    
-        match obj {
-            Sym(sym) => {
-                match sym.as_ref() {
-                    Lst(_) => sym.as_ref().eval(self),
-                    _ => Ok(sym.clone_inner())
-                }
-            }
-            
+        match obj {      
             Lst(node) if !node.is_empty() => {       
                 match node.get(0).unwrap() {
                     Sym(sym) => {
@@ -30,6 +23,8 @@ impl Env {
                     _ => Ok(node.evaled(self)?.as_obj())
                 }     
             }
+
+            Sym(sym) => Ok(sym.clone_inner()),
          
             _ => Ok(obj.clone())
         }
