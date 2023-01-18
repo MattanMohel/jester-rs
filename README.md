@@ -7,11 +7,15 @@ Jester Script is a Lisp-inspired scripting langauge written in Rust
 
 ### Why Was This Created?
 
-Because I wanted to. The name "Jester" was concieved because this project was originally supposed to be a joke - yet here we are. I went through countless iterations before reaching the present structure, and who knows what's to come in the future
+Because I wanted to. The name "Jester" was concieved because this project was originally supposed to be a joke - yet here we are. I went through countless iterations before reaching the code, and who knows what's to come in the future...
 
 ### How is it Maintained?
 
-Jester Script is solely maintained by me, so while it works great in testing, there's are no guarantees! If you're looking for a well-maintained scripting langauges, this isn't it 
+Jester Script is solely maintained by me, so while it works great in testing, there's are no guarantees!
+
+## Some Abstract
+
+In Jester Script, everything ios defined by the object class `Obj` and given behaviour by the environment class `Env`
 
 ## How Does it all Work?
 ```(+ 1 2 3)```; congrats, you just added ```1 + 2 + 3```!
@@ -21,13 +25,12 @@ Lisp and Jester Script use a variant on a prefix notation known as __S-Expressio
 ; (operator arguments)
 (+ 1 2) ; operator = '+', arguments = '1, 2'
 (* 3 4 5 6) ; operator = '*', arguments = '3, 4, 5, 6'
-(println "hello there!") ; operator = 'println', arguments = '"hello there!"'
+(println "hello there!") ; operator = 'println', arguments = 'hello there!'
 ```
 
-_In Lisp, `;` designates a comment - as if to ridicule all other langauges (but not really). 
-Also note that everything is separated by whitespace... the comma will come into play later, but for a different cause_
+_In Lisp, `;` designates a comment. Also note that everything is separated by whitespace... commas will come into play later, but for a different use_
 
-Additionally, there is no "order of operations." Order is decided by the placement of the parentheses:
+Additionally, there is no "order of operations." Order is decided by parentheses:
 
 ```
 (2 + 3) * 5 => (* 5 (+ 2 3))
@@ -42,7 +45,7 @@ Operations can be nested as much as you want or need...
 But there is more to S-Expressions, and this is where Jester Script diverges a bit from Lisp (if you want to read more on Lisp itself, there are great online resources). Consider the following:
 
 ```
-; (argument.. arguments?)
+; expressions with no operator
 (1 2 3)
 (x y z)
 ("how" "are" "you?")
@@ -57,7 +60,7 @@ You'll come to see the true power of S-Expressions later on
 __But Now What?__
 It's time to _vary_ things up... with variables that is
 
-In Jester Script, all variables exist from the get-go with a value of ```nil``` (equivalent to null, or None). Now, I obviously  don't store a list of all possible symbols--I don't have nearly enough patience for that. What does happen is that every time Jester Script parses out a symbol it hasn't encountered before (unless it is a numeric or String literal), it will add that symbol to the environment with a default `ni` value:
+In Jester Script, all variables exist from the get-go with a value of ```nil``` (equivalent to null, or None). Now, Jester Script obviously doesn't store a list of all possible symbols. What happens is that every time Jester Script parses out a symbol it hasn't encountered before (unless it is a numeric or String literal), it will add that symbol to the environment with a default `nil` value:
 
 ```
 (println x) ; prints out 'nil'
@@ -90,7 +93,7 @@ Functions are defined in the same syntax as everything else:
 (println (add 10 20)) ; prints '30'
 ```
 
-You might notice that the function has no `return`. Instead, Jester Script employs what is called a `progn`, which means that--for any expression--the last thing that evaluates also returns
+You might notice that the function has no `return`. Instead, Jester Script employs `progn`s, which means that--for any expression--the last thing evaluated is also returned
 
 Now lets explore the parallels between `defun` and `let`
 
@@ -101,13 +104,13 @@ Consider the following:
 	(+ a b))
 ```
 
-This is a `let` statement. It takes and sets parameters to a given argument `(10 -> a, 20 -> b)`, computes its body `(+ a b)` and returns the last expression. 
+This is a `let` statement. It takes and sets parameters to a given argument `(10 -> a, 20 -> b)`, computes its body `(+ a b)` and returns the last expression
 
-After exiting `let`, both `a` and `b` revert back to their previous values (in this case, lets assume they were `nil` prior). This is called a _Lexical Scope_, where variables maintain an "alias"
+After exiting `let`, both `a` and `b` revert back to their previous values (in this case, lets assume they were `nil` prior). This is called a _Lexical Scope_, where variables maintain an "alias" while inside a defined space
 
-`let` and `defun` are identical save for the way they are invoked. In both cases we added `a` and `b` within a lexical scope, but `let` could only be invoked its declaration site with static arguments, while `defun` defines a variable that can be invoked with dynamic arguments. 
+`let` and `defun` are identical save for the way they are invoked. In both cases we added `a` and `b` within a lexical scope, but `let` could only be invoked at its declaration site with static arguments, while `defun` defines a variable that can be invoked with dynamic arguments
 
-These similarities aren't a coicidence. Lisp and Jester follow a homogeneous design: _everything_ is and S-Expression, meaning that similarities between constructs arise where they were abstracted away before. 
+These similarities aren't a coicidence. Lisp and Jester follow a homogeneous design: _everything_ is and S-Expression, meaning that new similarities between constructs naturally arise 
 
 __Back to Progns__
 
@@ -123,7 +126,7 @@ __Now to REPL?__
 
 Progns enable a unique feature of S-Expression languages: the Read-Eval-Print-Loop, aka REPL
 
-A REPL works under the principle of 'last thing evaluated is returned'
+A REPL works under the same principle of 'last thing evaluated is returned'
 
 ```
 ; Jester Script REPL
@@ -147,7 +150,7 @@ yay!
 
 This section is so important it recieved its own big title!
 
-Remember when I said (in air-quotes) that Jester has no references, well, it does have Quotes!
+Remember when I said (in air-quotes) that Jester has no references, well, it does have _Quotes_!
 
 Lets look at an example:
 
@@ -164,13 +167,13 @@ X ; why is there a capital x here?
 "less favorite variable"
 ```
 
-_Note, because `quote` is so integral to Lisp, it has an integrated abbreviation (one of the few syntax abberations): `(quote x) = 'x`_
+_Note, because `quote` is so integral to Lisp, it has an integrated abbreviation of `'` (one of the few syntax abberations): `(quote x) = 'x`_
 
 If you saw this and thought that `quote` is just a special way to say `reference` or `&` or `*`, you're partially right, but also completely wrong
 
-What `quote` does is set, in this case, `y` to the _literal symbol_ of `x`. So `y = X` where `X` represents the symbol of `x` (variable symbols are designated through with uppercase)
+What `quote` does is set, in this case `y`, to the _literal symbol_ of `x`. So `y = X` where `X` represents the symbol of `x` (variable symbols are designated with uppercase)
 
-Its a way of saying--essentially--DON'T EVALUATE THIS:
+It's a way of saying--essentially--DON'T EVALUATE THIS:
 
 ```
 >> (+ 1 2 3)
@@ -223,13 +226,13 @@ Let me explain just what I mean
 3
 ```
 
-You just constructed addition between two numbers by pushing some symbols to a List, because _code is data and data is code_
+You just constructed addition between two numbers by pushing some symbols to a List, because _code is data and data is code_!
 
 __Macros__
 
 Macros are the final peice of the S-Expression puzzle--but they are different to the ones you know from Rust, C, or C++
 
-In Jester, just like anything else, Macros are a part of the langauge
+In Jester, just like everything else, Macros are a part of the langauge
 
 For example, the base Jester Script provides the following `loop`:
 
@@ -293,7 +296,7 @@ G#2
 
 A unique symbol, therefore, is stored in `res`
 
-Continuing on, the `let` expression evaluates with `res` set to the new symbol
+Continuing on, the `let` expression evaluates with `res` LITERALLY set to the new symbol
 
 We are evaluating a `'(progn ...)`, meaning we're returning `progn` and its arguments UNEVALUATED, save for, of course, the `,` escapes
 
